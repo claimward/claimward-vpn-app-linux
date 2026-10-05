@@ -2,8 +2,8 @@ github.com/ajroetker/go-highway v0.0.4 h1:RDQo+9OhTXI6BFctLo+5gYpHNbb92VYJ0ObnR4
 github.com/ajroetker/go-highway v0.0.4/go.mod h1:C/zYPNSSpOaraejY89FUTZTyQNEhi5+rEbU0LjlqJeU=
 github.com/andybalholm/brotli v1.2.5 h1:BSI8V4zmx/3BAn6OKjF1PmfVq7Aoi52AdFsi6bpCx+s=
 github.com/andybalholm/brotli v1.2.5/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
-github.com/claimward/claimward-vpn-client v0.2.1 h1:SZm6fXGfKEhzdsK1BNKiTt98GIeRS3Aw+c6sx8lKRss=
-github.com/claimward/claimward-vpn-client v0.2.1/go.mod h1:1M58h/wlJ0N68BfQQ7PZYJUw3h4HIrXckUUUc5Orr1o=
+github.com/claimward/claimward-vpn-client v0.3.0 h1:GpRAtxPuLxlytDodEBBjqztZmLptjJE+ZI6MfCRggNw=
+github.com/claimward/claimward-vpn-client v0.3.0/go.mod h1:1M58h/wlJ0N68BfQQ7PZYJUw3h4HIrXckUUUc5Orr1o=
 github.com/coder/websocket v1.8.15 h1:6B2JPeOGlpff2Uz6vOEH1Vzpi0iUz20A+lPVhPHtNUA=
 github.com/coder/websocket v1.8.15/go.mod h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=
 github.com/coreos/go-oidc/v3 v3.21.0 h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=
