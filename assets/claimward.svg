@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="claimward badge">
+  <!-- Square avatar for the GitHub org: white mark on brand fill. -->
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="#0D9488"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 17 H48 V33 Q48 44.5 32 52.5 Q16 44.5 16 33 Z"/>
+    <path d="M32 20.5 L26.5 23.7 L26.5 30.1 L32 33.3 L37.5 30.1 L37.5 23.7 Z"/>
+    <path d="M32 33.3 V44.5"/>
+    <path d="M32 40.8 H36.5"/>
+    <path d="M32 44.5 H38"/>
+  </g>
+</svg>
