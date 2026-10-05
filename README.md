@@ -92,7 +92,8 @@ logic is the same as the macOS app's: both use the shared core in
 
 The tray needs a StatusNotifierItem host: KDE Plasma, or GNOME with the
 *AppIndicator and KStatusNotifierItem Support* extension, sway/waybar, and so on.
-Without one the app says so on start-up and closing the window quits it.
+Without one, or if the tray item cannot be put on the session bus, the app says
+so on start-up and closing the window quits it.
 
 ## Install
 
