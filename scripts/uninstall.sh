@@ -34,7 +34,9 @@ rm -f /var/run/claimward-helper.sock
 
 if [ "$purge" -eq 1 ]; then
 	rm -rf /etc/claimward
-	getent group claimward >/dev/null && groupdel claimward || true
+	if getent group claimward >/dev/null; then
+		groupdel claimward || echo "could not remove the claimward group" >&2
+	fi
 	echo "removed /etc/claimward and the claimward group"
 fi
 echo "Claimward removed"

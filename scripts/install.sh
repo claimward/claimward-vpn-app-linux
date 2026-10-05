@@ -92,8 +92,13 @@ sed "s#/usr/local/bin/claimward-app#$prefix/bin/claimward-app#" \
 	"$here/deploy/claimward.desktop" >"$prefix/share/applications/claimward.desktop"
 chmod 0644 "$prefix/share/applications/claimward.desktop"
 install -D -m 0644 "$here/assets/claimward.svg" "$prefix/share/icons/hicolor/scalable/apps/claimward.svg"
-command -v update-desktop-database >/dev/null && update-desktop-database -q "$prefix/share/applications" || true
-command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$prefix/share/icons/hicolor" || true
+# Refreshing the menus' caches is a courtesy: a failure is not the install's.
+if command -v update-desktop-database >/dev/null; then
+	update-desktop-database -q "$prefix/share/applications" || :
+fi
+if command -v gtk-update-icon-cache >/dev/null; then
+	gtk-update-icon-cache -q -t "$prefix/share/icons/hicolor" || :
+fi
 
 systemctl daemon-reload
 systemctl enable claimward-helper.service >/dev/null

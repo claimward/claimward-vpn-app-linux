@@ -17,6 +17,7 @@ package view
 
 import (
 	"context"
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -656,4 +657,20 @@ func (v *View) Close() {
 		u()
 	}
 	v.unbind = nil
+}
+
+// CloseLeftoverWindow takes down the window application.Run leaves behind
+// once it returns. Call it after every Run.
+//
+// ⛔ go-widgets/application returns from Run when the window is closed but
+// never closes the window back-end: on X11 the window stays mapped, frozen,
+// with its connection open, until the garbage collector happens to finalize
+// it. The one reference to the back-end Run leaves is the toolkit clipboard,
+// which Run installed when the back-end has one; closing it through that
+// reference ends the connection, and the display server removes the window.
+func CloseLeftoverWindow() {
+	if c, ok := toolkit.CurrentClipboard().(io.Closer); ok {
+		_ = c.Close()
+	}
+	toolkit.SetClipboard(nil)
 }

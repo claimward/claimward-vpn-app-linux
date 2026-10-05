@@ -528,3 +528,26 @@ func TestButtonsAreDisabledBeforeTheFirstStatus(t *testing.T) {
 		t.Error("Settings must be reachable before the first status")
 	}
 }
+
+// closingClipboard is a window back-end as the toolkit clipboard sees it.
+type closingClipboard struct {
+	text   string
+	closed bool
+}
+
+func (c *closingClipboard) ClipboardText() string     { return c.text }
+func (c *closingClipboard) SetClipboardText(s string) { c.text = s }
+func (c *closingClipboard) Close() error              { c.closed = true; return nil }
+
+func TestTheLeftoverWindowIsClosed(t *testing.T) {
+	backend := &closingClipboard{}
+	toolkit.SetClipboard(backend)
+	CloseLeftoverWindow()
+	if !backend.closed {
+		t.Fatal("the window back-end left by Run was not closed")
+	}
+	if toolkit.CurrentClipboard() == toolkit.Clipboard(backend) {
+		t.Fatal("the clipboard still points at the closed window")
+	}
+	CloseLeftoverWindow() // the in-memory clipboard has nothing to close
+}
