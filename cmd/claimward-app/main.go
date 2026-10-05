@@ -63,8 +63,21 @@ func main() {
 	openWindow := make(chan struct{}, 1)
 	quit := make(chan struct{})
 	var quitOnce sync.Once
+	// The tray is this app's own, not application.Spec.Tray. Spec.Tray
+	// builds its menu once and keeps the *tray.Tray to itself, so the menu
+	// and the icon could not follow the view model, and it quits the tray
+	// when the window's Run returns, while here the app lives on in the tray
+	// after its window has closed and opens a new one on "Open window".
+	//
+	// It is Attached, not Run on a goroutine: since tray v0.14.0 Attach is
+	// implemented on Linux and returns once the item is on the session bus,
+	// so a tray that cannot be put up is known here, and the app then quits
+	// with its window rather than living on with no way back to it.
 	t := tray.New(assets.TrayPNG)
 	haveTray := trayHost()
+	if !haveTray {
+		log.Print("claimward: no StatusNotifierItem host on the session bus: no tray icon, and closing the window quits")
+	}
 	if haveTray {
 		win.Locked(func() {
 			trayview.Bind(t, vm, assets.TrayPNG, trayview.Actions{
@@ -77,11 +90,12 @@ func main() {
 				Quit: func() { quitOnce.Do(func() { close(quit) }) },
 			})
 		})
-		go func() {
-			if err := t.Run(); err != nil {
-				log.Printf("claimward: tray: %v", err)
-			}
-		}()
+		if err := t.Attach(); err != nil {
+			log.Printf("claimward: tray: %v: closing the window quits", err)
+			haveTray = false
+		}
+	}
+	if haveTray {
 		// Quit leaves the tunnel as it is: the helper owns it.
 		go func() {
 			<-quit
@@ -89,8 +103,6 @@ func main() {
 			t.Quit()
 			os.Exit(0)
 		}()
-	} else {
-		log.Print("claimward: no StatusNotifierItem host on the session bus: no tray icon, and closing the window quits")
 	}
 
 	show := !*hidden || !haveTray
@@ -106,7 +118,6 @@ func main() {
 			if err != nil {
 				log.Printf("claimward: window: %v", err)
 			}
-			view.CloseLeftoverWindow()
 			// An "Open window" clicked while the window was open is not a
 			// request to open another one now that it has closed.
 			select {

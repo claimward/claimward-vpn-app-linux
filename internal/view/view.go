@@ -17,7 +17,6 @@ package view
 
 import (
 	"context"
-	"io"
 	"sync"
 	"sync/atomic"
 
@@ -222,6 +221,15 @@ func (v *View) build() {
 
 	// The three switchers. Their pages are the boxes layout builds; which
 	// one shows is the view model's.
+	//
+	// They are Container+CardLayout rather than toolkit.Stack. Stack takes
+	// part in focus traversal since toolkit v0.326.0 (go-widgets/toolkit#480),
+	// so this is no longer needed for the settings form's fields to take
+	// keys; it is kept because the view model's page observables are ints
+	// that bind straight to CardLayout.Active, while Stack.Visible is a
+	// string observable and mvvm has no converting binding. Both hide the
+	// inactive pages from the focus walk, so swapping them changes nothing
+	// the user can see.
 	v.screenCard, v.slotCard, v.actionsCard = &toolkit.CardLayout{}, &toolkit.CardLayout{}, &toolkit.CardLayout{}
 	v.screens = toolkit.NewContainer(v.screenCard)
 	v.slot = toolkit.NewContainer(v.slotCard)
@@ -260,19 +268,19 @@ func (v *View) bind() {
 		mvvmtk.BindLabel(l.cfgPath, vm.ConfigPath, inv),
 		mvvmtk.BindLabel(l.cfgErr, vm.SettingsError, inv),
 
-		bindCommand(l.settings, vm.OpenSettings, inv),
-		bindCommand(l.openSettings, vm.OpenSettings, inv),
-		bindCommand(l.openPage, vm.OpenSignInPage, inv),
-		bindCommand(l.cancelSignIn, vm.CancelSignIn, inv),
-		bindCommand(l.refreshTenants, vm.ChooseTenant, inv),
-		bindCommand(l.chooseTenant, vm.ChooseTenant, inv),
-		bindCommand(l.signIn, vm.SignIn, inv),
-		bindCommand(l.connect, vm.Connect, inv),
-		bindCommand(l.disconnect, vm.Disconnect, inv),
-		bindCommand(l.signOut1, vm.SignOut, inv),
-		bindCommand(l.signOut2, vm.SignOut, inv),
-		bindCommand(l.save, vm.SaveSettings, inv),
-		bindCommand(l.cancel, vm.CloseSettings, inv),
+		mvvmtk.BindCommand(l.settings, vm.OpenSettings, inv),
+		mvvmtk.BindCommand(l.openSettings, vm.OpenSettings, inv),
+		mvvmtk.BindCommand(l.openPage, vm.OpenSignInPage, inv),
+		mvvmtk.BindCommand(l.cancelSignIn, vm.CancelSignIn, inv),
+		mvvmtk.BindCommand(l.refreshTenants, vm.ChooseTenant, inv),
+		mvvmtk.BindCommand(l.chooseTenant, vm.ChooseTenant, inv),
+		mvvmtk.BindCommand(l.signIn, vm.SignIn, inv),
+		mvvmtk.BindCommand(l.connect, vm.Connect, inv),
+		mvvmtk.BindCommand(l.disconnect, vm.Disconnect, inv),
+		mvvmtk.BindCommand(l.signOut1, vm.SignOut, inv),
+		mvvmtk.BindCommand(l.signOut2, vm.SignOut, inv),
+		mvvmtk.BindCommand(l.save, vm.SaveSettings, inv),
+		mvvmtk.BindCommand(l.cancel, vm.CloseSettings, inv),
 
 		mvvmtk.BindDropDownOptions(l.tenants, vm.TenantOptions, func(o viewmodel.TenantOption) string { return o.Label }, inv),
 		mvvmtk.BindSelectedIndex(l.tenants, vm.TenantIndex, inv),
@@ -291,18 +299,6 @@ func (v *View) bind() {
 	for _, e := range []*toolkit.Entry{l.server, l.ghClient, l.issuer, l.oidcClient} {
 		e.OnSubmit = func(string) { vm.SaveSettings.Execute() }
 	}
-}
-
-// bindCommand is mvvmtk.BindCommand, and the button is also really disabled
-// while the command cannot execute: greyed, and deaf to clicks.
-func bindCommand(b *toolkit.Button, c *mvvm.Command, inv func()) func() {
-	u1 := mvvmtk.BindCommand(b, c, inv)
-	b.Disabled().Set(!c.CanExecute())
-	u2 := c.SubscribeCanExecuteChanged(func() {
-		b.Disabled().Set(!c.CanExecute())
-		inv()
-	})
-	return func() { u1(); u2() }
 }
 
 // layout builds the boxes that place the leaves, at the current scale.
@@ -657,20 +653,4 @@ func (v *View) Close() {
 		u()
 	}
 	v.unbind = nil
-}
-
-// CloseLeftoverWindow takes down the window application.Run leaves behind
-// once it returns. Call it after every Run.
-//
-// ⛔ go-widgets/application returns from Run when the window is closed but
-// never closes the window back-end: on X11 the window stays mapped, frozen,
-// with its connection open, until the garbage collector happens to finalize
-// it. The one reference to the back-end Run leaves is the toolkit clipboard,
-// which Run installed when the back-end has one; closing it through that
-// reference ends the connection, and the display server removes the window.
-func CloseLeftoverWindow() {
-	if c, ok := toolkit.CurrentClipboard().(io.Closer); ok {
-		_ = c.Close()
-	}
-	toolkit.SetClipboard(nil)
 }
