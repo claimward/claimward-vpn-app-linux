@@ -417,9 +417,13 @@ func TestPointerAndWheelReachTheWidgets(t *testing.T) {
 		t.Fatalf("the log does not follow its end: row %d", lb.ScrollRow().Get())
 	}
 	x, y := center(lb)
-	f.v.MouseMove(x, y) // a hover
-	f.v.Scroll(-120)    // three rows up
-	f.v.Scroll(-1)      // less than a row is still a row
+	f.v.Frame()
+	f.v.MouseMove(x, y) // a hover: the widget under the pointer may change its face
+	if !f.v.NeedsPresent() {
+		t.Fatal("input did not ask for a frame")
+	}
+	f.v.Scroll(-120) // three rows up
+	f.v.Scroll(-1)   // less than a row is still a row
 	f.v.Scroll(0)
 	if got := f.vm.LogScroll.Get(); got >= 40 {
 		t.Fatalf("scrolling the log did not reach the view model: row %d", got)
@@ -506,5 +510,21 @@ func TestMinSizeFitsTheLayout(t *testing.T) {
 func TestKeyCodes(t *testing.T) {
 	if keyCode("Up") != "ArrowUp" || keyCode("Enter") != "Enter" {
 		t.Fatal("keyCode")
+	}
+}
+
+func TestButtonsAreDisabledBeforeTheFirstStatus(t *testing.T) {
+	d := viewmodel.NewDispatcher()
+	vm := viewmodel.New(&service{}, viewmodel.Options{Dispatcher: d})
+	defer vm.Stop()
+	v := New(vm, d)
+	defer v.Close()
+	for _, b := range []*toolkit.Button{v.leaves.signIn, v.leaves.connect, v.leaves.disconnect, v.leaves.signOut1, v.leaves.save} {
+		if !b.Disabled().Get() {
+			t.Errorf("%q is enabled before anything is known", b.Label().Get())
+		}
+	}
+	if v.leaves.settings.Disabled().Get() {
+		t.Error("Settings must be reachable before the first status")
 	}
 }

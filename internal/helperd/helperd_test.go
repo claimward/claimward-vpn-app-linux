@@ -2,8 +2,11 @@ package helperd
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +17,10 @@ import (
 
 	"github.com/claimward/claimward-vpn-client/pkg/helper"
 	"github.com/claimward/claimward-vpn-client/pkg/helperclient"
+	"github.com/claimward/claimward-vpn-client/pkg/hproto"
+	"github.com/claimward/claimward-vpn-client/pkg/protocol"
+	"github.com/claimward/claimward-vpn-client/pkg/wgkey"
+	"github.com/claimward/claimward-vpn-client/pkg/wgtun"
 )
 
 // syncBuffer is a log the helper writes from several goroutines.
@@ -60,6 +67,7 @@ func fakeDeps(t *testing.T, sock string) (deps, chan os.Signal, *string, *string
 		},
 		signals: func() (<-chan os.Signal, func()) { return sig, func() {} },
 		euid:    func() int { return 0 },
+		setup:   func(*helper.Server) {},
 	}, sig, &loaded, &group
 }
 
@@ -173,6 +181,7 @@ func TestAServeFailureStopsIt(t *testing.T) {
 		listen:  func(string, string) (net.Listener, error) { return brokenListener{}, nil },
 		signals: func() (<-chan os.Signal, func()) { return make(chan os.Signal), func() {} },
 		euid:    func() int { return 0 },
+		setup:   func(*helper.Server) {},
 	}
 	if code := run(nil, &log, d); code != 1 || !strings.Contains(log.String(), "too many open files") {
 		t.Fatalf("exit %d log:\n%s", code, log.String())
@@ -204,5 +213,72 @@ func TestMainUsesTheSystem(t *testing.T) {
 	}
 	if !strings.Contains(log.String(), "missing.json") {
 		t.Fatalf("log:\n%s", log.String())
+	}
+}
+
+// fakeTunnel stands in for the WireGuard tunnel, which needs root.
+type fakeTunnel struct {
+	mu     sync.Mutex
+	closed bool
+}
+
+func (f *fakeTunnel) Name() string                { return "utun" }
+func (f *fakeTunnel) UpdateRoutes([]string) error { return nil }
+func (f *fakeTunnel) Close() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.closed = true
+	return nil
+}
+func (f *fakeTunnel) isClosed() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.closed
+}
+
+func TestSIGTERMTakesTheTunnelDown(t *testing.T) {
+	// A claimward-vpn-server, as far as the helper sees one.
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST "+protocol.PathEnroll, func(w http.ResponseWriter, r *http.Request) {
+		pair, _ := wgkey.Generate()
+		json.NewEncoder(w).Encode(protocol.EnrollResponse{AssignedIP: "10.80.0.7/32", ServerPublicKey: pair.Public.String(),
+			Endpoint: "vpn.example.org:51820", AllowedIPs: []string{"10.2.0.0/16"}})
+	})
+	vpn := httptest.NewServer(mux)
+	defer vpn.Close()
+
+	sock := socketPath(t)
+	d, sig, _, _ := fakeDeps(t, sock)
+	d.load = func(string) (*helper.Config, error) {
+		return &helper.Config{Servers: []string{vpn.URL}, Group: "claimward", Socket: sock}, nil
+	}
+	tun := &fakeTunnel{}
+	d.setup = func(s *helper.Server) {
+		s.UseTunnels(func(wgtun.Config) (helper.Tunnel, error) { return tun, nil })
+	}
+	var log syncBuffer
+	exit := make(chan int)
+	go func() { exit <- run(nil, &log, d) }()
+
+	c := helperclient.New(sock)
+	for deadline := time.Now().Add(5 * time.Second); !c.Available(); time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("the helper never listened; log:\n%s", log.String())
+		}
+	}
+	pair, _ := wgkey.Generate()
+	resp, err := c.Connect(hproto.ConnectSpec{ServerURL: vpn.URL, Bearer: "b", PrivateKey: pair.Private.String(), DeviceName: "laptop"})
+	if err != nil || !resp.Connected || resp.AssignedIP != "10.80.0.7/32" {
+		t.Fatalf("connect %+v %v", resp, err)
+	}
+	if tun.isClosed() {
+		t.Fatal("the tunnel is down already")
+	}
+	sig <- syscall.SIGTERM
+	if code := <-exit; code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if !tun.isClosed() {
+		t.Fatal("SIGTERM left the tunnel up")
 	}
 }

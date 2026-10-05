@@ -231,7 +231,11 @@ func TestSignInShowsTheDeviceFlowPromptThenSignsIn(t *testing.T) {
 			st.DeviceVerificationURI, st.DeviceUserCode = "https://github.com/login/device", "ABCD-1234"
 		})
 		close(prompted)
-		<-release
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 		f.edit(func(st *appcore.Status) {
 			st.DeviceVerificationURI, st.DeviceUserCode = "", ""
 			st.LoggedIn, st.Email = true, "ada@example.org"
@@ -474,11 +478,20 @@ func TestPollsDoNotTakeTheShownTenantForAChoice(t *testing.T) {
 
 func TestATenantUnknownToTheListIsShownByItsID(t *testing.T) {
 	svc := signedIn()
-	svc.st.Tenant = "gone"
+	svc.st.Tenants, svc.st.Tenant = svc.tenants, "lab"
 	vm, _ := newVM(t, svc)
+	poll(vm, svc) // the drop-down on "lab"
+	// The helper reports a tenant the list does not offer (connected to it
+	// before the list was fetched, say).
+	svc.st.Tenant = "gone"
 	poll(vm, svc)
 	if vm.Tenant.Get() != "Tenant: gone" || vm.TenantIndex.Get() != 0 {
 		t.Fatalf("tenant %q index %d", vm.Tenant.Get(), vm.TenantIndex.Get())
+	}
+	// The drop-down shows no row for it, and that is not the person choosing
+	// "no tenant": the session keeps the one it has.
+	if len(svc.called()) != 0 {
+		t.Fatalf("a poll changed the session's tenant: %v", svc.called())
 	}
 }
 
@@ -745,5 +758,34 @@ func TestHelpers(t *testing.T) {
 	}
 	if len(Providers) != len(ProviderLabels) {
 		t.Fatal("every provider needs a label")
+	}
+}
+
+func TestOneActionAtATime(t *testing.T) {
+	svc := signedIn()
+	release := make(chan struct{})
+	vm, d := newVM(t, svc)
+	poll(vm, svc)
+	// Hold an action in progress.
+	block := func(ctx context.Context) error {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+		return nil
+	}
+	vm.run("Connecting…", block, func(error) {})
+	for name, c := range map[string]interface{ CanExecute() bool }{
+		"SignIn": vm.SignIn, "ChooseTenant": vm.ChooseTenant, "Connect": vm.Connect,
+		"Disconnect": vm.Disconnect, "SignOut": vm.SignOut, "OpenSettings": vm.OpenSettings,
+	} {
+		if c.CanExecute() {
+			t.Errorf("%s offered while another action runs", name)
+		}
+	}
+	close(release)
+	settle(vm, d)
+	if !vm.Connect.CanExecute() {
+		t.Fatal("Connect not offered again once the action ended")
 	}
 }

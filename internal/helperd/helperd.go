@@ -26,12 +26,14 @@ const DefaultConfigPath = "/etc/claimward/helper.json"
 
 // deps are the seams a test replaces: the configuration loader (which refuses a
 // file not owned by root), the socket (which needs root to give to its group),
-// the signals, and the effective user.
+// the signals, the effective user, and the server itself.
 type deps struct {
 	load    func(path string) (*helper.Config, error)
 	listen  func(path, group string) (net.Listener, error)
 	signals func() (<-chan os.Signal, func())
 	euid    func() int
+	// setup adjusts the server before it serves: a test fakes the tunnel.
+	setup func(*helper.Server)
 }
 
 var system = deps{
@@ -42,7 +44,8 @@ var system = deps{
 		signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
 		return ch, func() { signal.Stop(ch) }
 	},
-	euid: os.Geteuid,
+	euid:  os.Geteuid,
+	setup: func(*helper.Server) {},
 }
 
 // Main runs the helper with the process's arguments (without the program
@@ -84,6 +87,7 @@ func run(args []string, stderr io.Writer, d deps) int {
 		return 1
 	}
 	srv := helper.New(*cfg, "linux", "app-linux", log)
+	d.setup(srv)
 	sig, stop := d.signals()
 	defer stop()
 

@@ -1,0 +1,116 @@
+# CI for the Claimward Linux app. Every push to main and every pull request:
+#
+#   test       go vet, gofmt, the tests under the race detector, and 100% statement
+#              coverage of internal/ (the view model, the window's view, the tray
+#              and the helper daemon). cmd/ is excluded: it only wires those
+#              together and opens a real window, a launch-verified boundary, as
+#              go-widgets/application excludes its own run loop.
+#   build      CGO_ENABLED=0 builds of the app and the helper for linux amd64,
+#              arm64, 386 and arm.
+#   scripts    shellcheck over the install scripts and the CI helpers.
+#   mvvm       go-widgets/mvvmlint: no widget state is written outside a binding.
+#   bricolint  go-widgets/bricolint: no UI drawn by hand. A negative control then
+#              proves both guards still bite on this app's own code.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GOWORK: "off"
+  CGO_ENABLED: "0"
+
+jobs:
+  test:
+    name: vet, gofmt, tests, coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::not gofmt-clean:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Tests (race detector)
+        # The race detector needs cgo.
+        env:
+          CGO_ENABLED: "1"
+        run: go test -race -count=1 ./...
+
+      - name: Coverage of internal/
+        run: go test -count=1 -coverprofile=coverage.out ./internal/...
+
+      - name: Assert 100% statement coverage
+        run: |
+          total=$(go tool cover -func=coverage.out | awk 'END { gsub(/%/, "", $3); print $3 }')
+          echo "total coverage of internal/: ${total}%"
+          if [ "$total" != "100.0" ]; then
+            echo "::error::coverage below 100% (got ${total}%)"
+            go tool cover -func=coverage.out | grep -v "100.0%"
+            exit 1
+          fi
+
+  build:
+    name: build linux/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [amd64, arm64, "386", arm]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+          cache: true
+      - name: Build the app and the helper
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -trimpath -o bin/ ./cmd/...
+      - run: ls -l bin/
+
+  scripts:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck scripts/*.sh hack/*.sh
+
+  mvvm:
+    name: MVVM gate
+    uses: go-widgets/mvvmlint/.github/workflows/mvvmlint.yml@main
+
+  bricolint:
+    name: Hand-drawn-UI gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+          cache: true
+      - name: Install bricolint and mvvmlint
+        run: |
+          go install github.com/go-widgets/bricolint/cmd/bricolint@v0.4.0
+          go install github.com/go-widgets/mvvmlint/cmd/mvvmlint@v0.4.0
+      - name: Guard against hand-drawn UI
+        run: go vet -vettool="$(go env GOPATH)/bin/bricolint" ./...
+      - name: Negative control (both guards must bite)
+        run: bash hack/lint-negative-control.sh
