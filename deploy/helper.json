@@ -1,0 +1,5 @@
+{
+  "servers": ["https://vpn.example.com"],
+  "group": "claimward",
+  "socket": "/var/run/claimward-helper.sock"
+}

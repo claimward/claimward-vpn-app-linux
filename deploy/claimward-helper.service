@@ -1,0 +1,62 @@
+# The Claimward privileged helper: brings the WireGuard tunnel up and down for
+# the desktop app, over a unix socket only root and the claimward group can
+# reach (0660). It enrolls only with the servers /etc/claimward/helper.json
+# names, and that file must be owned by root and writable by root alone.
+#
+# Installed by scripts/install.sh as /etc/systemd/system/claimward-helper.service.
+
+[Unit]
+Description=Claimward VPN privileged helper
+Documentation=https://github.com/claimward/claimward-vpn-app-linux
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/claimward-helper -config /etc/claimward/helper.json
+Restart=on-failure
+RestartSec=2s
+# SIGTERM takes the tunnel down before the helper exits.
+KillSignal=SIGTERM
+TimeoutStopSec=15s
+
+# --- Hardening -----------------------------------------------------------
+# The helper runs as root because creating a TUN device, addressing it and
+# routing through it need CAP_NET_ADMIN, and handing the socket to the
+# claimward group needs CAP_CHOWN. Nothing else is kept.
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_CHOWN
+NoNewPrivileges=yes
+
+# The whole file system is read-only except /run, where the socket lives
+# (/var/run is a link to it).
+ProtectSystem=strict
+ReadWritePaths=/run
+ProtectHome=yes
+PrivateTmp=yes
+
+# /dev/net/tun and nothing else from /dev (PrivateDevices= would hide it).
+DevicePolicy=closed
+DeviceAllow=/dev/net/tun rw
+
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+# unix: the socket; inet: the server and the tunnel; netlink: the ip(8)
+# commands and the TUN device.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

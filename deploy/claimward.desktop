@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Claimward VPN
+GenericName=VPN client
+Comment=Sign in and connect to your organisation's WireGuard VPN
+Exec=/usr/local/bin/claimward-app
+Icon=claimward
+Terminal=false
+Categories=Network;
+Keywords=VPN;WireGuard;Claimward;
+StartupNotify=false

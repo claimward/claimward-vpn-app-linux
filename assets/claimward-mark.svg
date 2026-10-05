@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="claimward mark">
+  <!-- Monoline key + shield. Key teeth = the lock "wards". -->
+  <g fill="none" stroke="#0D9488" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Shield / ward -->
+    <path d="M14 15 H50 V33 Q50 46 32 55 Q14 46 14 33 Z"/>
+    <!-- Key bow: hexagon (hardware-token nod) -->
+    <path d="M32 19 L25.9 22.5 L25.9 29.5 L32 33 L38.1 29.5 L38.1 22.5 Z"/>
+    <!-- Key stem -->
+    <path d="M32 33 V46"/>
+    <!-- Key teeth = the wards (shortened to clear the shield edge) -->
+    <path d="M32 42 H37"/>
+    <path d="M32 46 H38"/>
+  </g>
+</svg>
