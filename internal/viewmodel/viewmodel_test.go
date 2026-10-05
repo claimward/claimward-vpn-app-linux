@@ -427,6 +427,9 @@ func TestATenantRequiredRefusalOffersTheTenantsThenConnects(t *testing.T) {
 	if !strings.Contains(vm.Error.Get(), "several tenants") {
 		t.Fatalf("error %q", vm.Error.Get())
 	}
+	if vm.Tenant.Get() != "Tenant: none chosen" {
+		t.Fatalf("tenant %q while one is required", vm.Tenant.Get())
+	}
 	if vm.Slot.Get() != SlotTenants || vm.TenantOptions.Len() != 3 {
 		t.Fatalf("slot %d options %v", vm.Slot.Get(), vm.TenantOptions.Slice())
 	}

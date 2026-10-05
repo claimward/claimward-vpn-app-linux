@@ -539,7 +539,7 @@ func (vm *ViewModel) Apply(st appcore.Status) {
 	if st.HelperInstalled {
 		vm.Helper.Set("Privileged helper: running")
 	} else {
-		vm.Helper.Set("Privileged helper: not running — install it to connect (see the README)")
+		vm.Helper.Set("Privileged helper: not running (see the README)")
 	}
 	vm.TrayText.Set(trayText(st))
 
@@ -589,6 +589,8 @@ func (vm *ViewModel) applyTenants(st appcore.Status) {
 	switch {
 	case !st.LoggedIn:
 		vm.Tenant.Set("")
+	case st.Tenant == "" && st.TenantRequired:
+		vm.Tenant.Set("Tenant: none chosen")
 	default:
 		vm.Tenant.Set(vm.tenantLabel(st.Tenant, st.Tenants))
 	}

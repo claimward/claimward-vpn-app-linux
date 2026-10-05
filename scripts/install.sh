@@ -76,6 +76,7 @@ if [ ! -e "$cfg" ]; then
 	fi
 else
 	echo "keeping the existing $cfg"
+	[ -z "$server" ] || echo "WARNING: --server is not applied to an existing configuration; edit \"servers\" in $cfg if it should change"
 fi
 chown root:root "$cfg"
 chmod 0644 "$cfg"
@@ -97,6 +98,13 @@ command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$pre
 systemctl daemon-reload
 systemctl enable claimward-helper.service >/dev/null
 systemctl restart claimward-helper.service
-systemctl is-active --quiet claimward-helper.service ||
-	die "the helper did not start: journalctl -u claimward-helper"
-echo "claimward-helper is running; start the app from your desktop's menu (Claimward VPN)"
+# "active" only says systemd started it; the socket says it is serving.
+sock=$(sed -n 's/.*"socket": *"\([^"]*\)".*/\1/p' "$cfg")
+sock=${sock:-/var/run/claimward-helper.sock}
+i=0
+while [ ! -S "$sock" ]; do
+	i=$((i + 1))
+	[ $i -le 50 ] || die "the helper is not listening on $sock: journalctl -u claimward-helper"
+	sleep 0.2
+done
+echo "claimward-helper is listening on $sock; start the app from your desktop's menu (Claimward VPN)"

@@ -12,6 +12,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"github.com/claimward/claimward-vpn-client/pkg/appcore"
 	"github.com/claimward/claimward-vpn-client/pkg/browser"
 	"github.com/go-widgets/application"
+	"github.com/go-widgets/toolkit"
 	"github.com/go-widgets/tray"
 	"github.com/godbus/dbus/v5"
 
@@ -106,6 +108,7 @@ func main() {
 			if err != nil {
 				log.Printf("claimward: window: %v", err)
 			}
+			closeWindow()
 			// An "Open window" clicked while the window was open is not a
 			// request to open another one now that it has closed.
 			select {
@@ -124,6 +127,21 @@ func main() {
 			select {} // the quit goroutine exits the process
 		}
 	}
+}
+
+// closeWindow takes down the window application.Run leaves behind.
+//
+// ⛔ go-widgets/application v0.x returns from Run when the window is closed
+// but never closes the backend: on X11 the window stays mapped, frozen, with
+// its connection open, until the garbage collector happens to finalize it.
+// The one reference to the backend left after Run is the toolkit clipboard,
+// which Run installed; closing it through that reference ends the connection,
+// and the X server removes the window.
+func closeWindow() {
+	if c, ok := toolkit.CurrentClipboard().(io.Closer); ok {
+		_ = c.Close()
+	}
+	toolkit.SetClipboard(nil)
 }
 
 // trayHost reports whether the desktop shows StatusNotifierItems: KDE, and
