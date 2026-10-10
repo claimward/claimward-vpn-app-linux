@@ -97,7 +97,7 @@ so on start-up and closing the window quits it.
 
 ## Install
 
-Build as yourself (Go 1.27.1 or later), then install as root:
+Build as yourself (Go 1.27.2 or later), then install as root:
 
 ```sh
 CGO_ENABLED=0 go build -trimpath -o bin/ ./cmd/...
