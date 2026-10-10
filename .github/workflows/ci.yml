@@ -96,6 +96,9 @@ jobs:
   mvvm:
     name: MVVM gate
     uses: go-widgets/mvvmlint/.github/workflows/mvvmlint.yml@main
+    with:
+      # The reusable workflow still defaults to 1.27.1, below this module's go directive.
+      go-version: '1.27.2'
 
   bricolint:
     name: Hand-drawn-UI gate
