@@ -10,7 +10,7 @@ require (
 	github.com/go-widgets/painter v0.16.0
 	github.com/go-widgets/toolkit v0.329.0
 	github.com/go-widgets/tray v0.15.0
-	github.com/godbus/dbus/v5 v5.2.3
+	github.com/godbus/dbus/v5 v5.2.4
 )
 
 require (
