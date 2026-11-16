@@ -7,8 +7,8 @@ require (
 	github.com/go-widgets/application v0.8.1
 	github.com/go-widgets/mvvm v0.15.0
 	github.com/go-widgets/mvvmtk v0.15.0
-	github.com/go-widgets/painter v0.17.0
-	github.com/go-widgets/toolkit v0.356.0
+	github.com/go-widgets/painter v0.17.1
+	github.com/go-widgets/toolkit v0.378.0
 	github.com/go-widgets/tray v0.15.0
 	github.com/godbus/dbus/v5 v5.2.4
 )
@@ -22,18 +22,19 @@ require (
 	github.com/go-gfx/gfx v0.41.0 // indirect
 	github.com/go-gtk/gtk4 v0.9.0 // indirect
 	github.com/go-icons/iconoir v0.3.0 // indirect
-	github.com/go-images/images v0.1.1-0.20261026203936-4ac989d310a1 // indirect
+	github.com/go-images/images v0.3.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-macos/appkit v0.9.0 // indirect
 	github.com/go-macos/objc v0.11.0 // indirect
 	github.com/go-mswin/win32 v0.6.0 // indirect
 	github.com/go-opentype/fonts v0.14.0 // indirect
-	github.com/go-opentype/opentype v0.16.2-0.20261027113239-5e69589e9a5e // indirect
+	github.com/go-opentype/opentype v0.20.0 // indirect
 	github.com/go-opentype/shape v0.7.0 // indirect
 	github.com/go-richdoc/richdoc v0.7.0 // indirect
 	github.com/go-typeset/bidi v0.3.1 // indirect
 	github.com/go-widgets/android v0.15.0 // indirect
 	github.com/go-widgets/textinput v0.1.0 // indirect
+	github.com/go-widgets/vcs v0.1.0 // indirect
 	github.com/go-widgets/webcanvas v0.3.0 // indirect
 	github.com/go-widgets/window v0.87.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
