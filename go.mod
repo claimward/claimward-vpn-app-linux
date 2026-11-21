@@ -1,14 +1,14 @@
 module github.com/claimward/claimward-vpn-app-linux
 
-go 1.27.2
+go 1.27.4
 
 require (
 	github.com/claimward/claimward-vpn-client v0.3.1
 	github.com/go-widgets/application v0.8.1
 	github.com/go-widgets/mvvm v0.15.0
-	github.com/go-widgets/mvvmtk v0.15.0
+	github.com/go-widgets/mvvmtk v0.16.0
 	github.com/go-widgets/painter v0.17.1
-	github.com/go-widgets/toolkit v0.378.0
+	github.com/go-widgets/toolkit v0.394.0
 	github.com/go-widgets/tray v0.15.0
 	github.com/godbus/dbus/v5 v5.2.4
 )
@@ -17,11 +17,10 @@ require (
 	github.com/coreos/go-oidc/v3 v3.21.0 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/ebitengine/purego v0.11.1 // indirect
-	github.com/go-crdt/crdt v0.57.0 // indirect
+	github.com/go-crdt/crdt v0.59.0 // indirect
 	github.com/go-freedesktop/x11 v0.3.0 // indirect
 	github.com/go-gfx/gfx v0.41.0 // indirect
 	github.com/go-gtk/gtk4 v0.9.0 // indirect
-	github.com/go-icons/iconoir v0.3.0 // indirect
 	github.com/go-images/images v0.3.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-macos/appkit v0.9.0 // indirect
@@ -37,8 +36,8 @@ require (
 	github.com/go-widgets/vcs v0.1.0 // indirect
 	github.com/go-widgets/webcanvas v0.3.0 // indirect
 	github.com/go-widgets/window v0.87.0 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
@@ -46,7 +45,7 @@ require (
 	golang.zx2c4.com/wireguard v0.0.0-20260522210424-ecfc5a8d5446 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10 // indirect
 	golang.zx2c4.com/wireguard/windows v1.1.1 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
-	google.golang.org/grpc v1.84.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260817212433-ac3dfec99bb1 // indirect
+	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
