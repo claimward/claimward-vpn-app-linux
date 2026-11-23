@@ -144,9 +144,14 @@ For OIDC or [go-authn](https://github.com/go-authn/bridge), set `"provider"` to
 `"socket_path"` overrides the helper's socket.
 
 The session (tokens and the device's WireGuard private key) is kept in the
-desktop's Secret Service keyring (via `secret-tool`). Setting
-`CLAIMWARD_ALLOW_PLAINTEXT_SESSION=1` opts back into
-`~/.config/claimward/session.json`, mode 0600.
+desktop's Secret Service keyring (via `secret-tool`).
+
+**A Secret Service provider is required** (client v0.5.0 and later): install
+and unlock one such as gnome-keyring or KeePassXC, and install `secret-tool`
+(`libsecret-tools`). There is no plaintext fallback: with none, sign-in fails
+with an error naming what is missing, and no session file is written. This
+also applies to a headless server. A `session.json` left by an older version
+is moved into the keyring on first start, or deleted if the keyring refuses it.
 
 ### The helper
 
@@ -188,8 +193,8 @@ After editing it: `sudo systemctl restart claimward-helper`.
   security claimward-helper` rates it 2.5 (OK).
 - **Stopping the helper takes the tunnel down** (SIGTERM).
 - The session (a bearer token and the device's private key) is sealed in the
-  Secret Service keyring. Only with `CLAIMWARD_ALLOW_PLAINTEXT_SESSION=1` is it a
-  file, mode 0600 in your home directory.
+  Secret Service keyring and never written to disk in clear: without a Secret
+  Service provider, sign-in fails.
 - `install.sh --server` accepts https URLs only: the token is sent to that server.
 
 ## Development
