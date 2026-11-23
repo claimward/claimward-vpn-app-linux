@@ -10,7 +10,7 @@
 # desktop entry and icon, then starts the helper.
 #
 # Options:
-#   --server URL   the claimward-vpn-server the helper may enroll with; written
+#   --server URL   the claimward-vpn-server (https only) the helper may enroll with; written
 #                  into a NEW /etc/claimward/helper.json (an existing one is kept)
 #   --user NAME    who to add to the claimward group (default: $SUDO_USER)
 #   --bin DIR      where the built binaries are (default: ./bin)
@@ -37,17 +37,22 @@ while [ $# -gt 0 ]; do
 	esac
 done
 
-[ "$(id -u)" -eq 0 ] || die "run it as root: sudo $0 $*"
-for b in claimward-app claimward-helper; do
-	[ -x "$bin/$b" ] || die "$bin/$b is missing: build first, as yourself: CGO_ENABLED=0 go build -o bin/ ./cmd/..."
-done
+# The server URL is checked before anything else, so a bad one never gets as far
+# as being written into the helper's configuration. https only: the helper sends
+# the person's bearer token to this server, and over http anyone on the path
+# could read it.
 case "$server" in
-"" | https://* | http://*) ;;
-*) die "--server must be an http(s) URL: $server" ;;
+"" | https://*) ;;
+*) die "--server must be an https URL: $server" ;;
 esac
 case "$server" in
 *'"'* | *\\*) die "--server must not contain quotes or backslashes" ;;
 esac
+
+[ "$(id -u)" -eq 0 ] || die "run it as root: sudo $0 $*"
+for b in claimward-app claimward-helper; do
+	[ -x "$bin/$b" ] || die "$bin/$b is missing: build first, as yourself: CGO_ENABLED=0 go build -o bin/ ./cmd/..."
+done
 
 # The group that may use the helper's socket, and the person in it.
 if ! getent group "$group" >/dev/null; then

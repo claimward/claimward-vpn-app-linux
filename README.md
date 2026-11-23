@@ -104,6 +104,8 @@ CGO_ENABLED=0 go build -trimpath -o bin/ ./cmd/...
 sudo ./scripts/install.sh --server https://vpn.example.com
 ```
 
+`--server` must be an https URL; the installer refuses anything else.
+
 `install.sh`:
 
 1. creates the `claimward` group and adds you to it (`$SUDO_USER`, or `--user`):
@@ -141,7 +143,9 @@ For OIDC or [go-authn](https://github.com/go-authn/bridge), set `"provider"` to
 `"oidc"` or `"go-authn"` and give `"oidc_issuer"` and `"oidc_client_id"` instead.
 `"socket_path"` overrides the helper's socket.
 
-The session (tokens and the device's WireGuard private key) is kept in
+The session (tokens and the device's WireGuard private key) is kept in the
+desktop's Secret Service keyring (via `secret-tool`). Setting
+`CLAIMWARD_ALLOW_PLAINTEXT_SESSION=1` opts back into
 `~/.config/claimward/session.json`, mode 0600.
 
 ### The helper
@@ -183,8 +187,10 @@ After editing it: `sudo systemctl restart claimward-helper`.
   unix, inet, inet6 and netlink, `@system-service` system calls. `systemd-analyze
   security claimward-helper` rates it 2.5 (OK).
 - **Stopping the helper takes the tunnel down** (SIGTERM).
-- The session file holds a bearer token and the device's private key, mode 0600 in
-  your home directory. It is not yet in a keyring.
+- The session (a bearer token and the device's private key) is sealed in the
+  Secret Service keyring. Only with `CLAIMWARD_ALLOW_PLAINTEXT_SESSION=1` is it a
+  file, mode 0600 in your home directory.
+- `install.sh --server` accepts https URLs only: the token is sent to that server.
 
 ## Development
 

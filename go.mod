@@ -1,9 +1,9 @@
 module github.com/claimward/claimward-vpn-app-linux
 
-go 1.27.2
+go 1.27.4
 
 require (
-	github.com/claimward/claimward-vpn-client v0.3.1
+	github.com/claimward/claimward-vpn-client v0.4.0
 	github.com/go-widgets/application v0.8.1
 	github.com/go-widgets/mvvm v0.15.0
 	github.com/go-widgets/mvvmtk v0.15.0
@@ -39,14 +39,14 @@ require (
 	github.com/go-widgets/window v0.87.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/oauth2 v0.37.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/oauth2 v0.38.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
-	golang.zx2c4.com/wireguard v0.0.0-20260522210424-ecfc5a8d5446 // indirect
+	golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10 // indirect
 	golang.zx2c4.com/wireguard/windows v1.1.1 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
-	google.golang.org/grpc v1.84.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260817212433-ac3dfec99bb1 // indirect
+	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
