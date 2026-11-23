@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.27.3'
+          go-version: '1.27.4'
           cache: true
 
       - name: gofmt
@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.27.3'
+          go-version: '1.27.4'
           cache: true
       - name: Build the app and the helper
         env:
@@ -98,7 +98,7 @@ jobs:
     uses: go-widgets/mvvmlint/.github/workflows/mvvmlint.yml@main
     with:
       # The reusable workflow still defaults to 1.27.1, below this module's go directive.
-      go-version: '1.27.2'
+      go-version: '1.27.4'
 
   bricolint:
     name: Hand-drawn-UI gate
@@ -107,7 +107,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.27.3'
+          go-version: '1.27.4'
           cache: true
       - name: Install bricolint and mvvmlint
         run: |
