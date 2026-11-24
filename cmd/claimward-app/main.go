@@ -109,12 +109,23 @@ func main() {
 	w, h := view.MinSize()
 	for {
 		if show {
-			err := application.Run(application.Spec{
-				Name:       "Claimward VPN",
-				Identifier: "org.claimward.vpn",
-				Version:    version,
-				Icon:       assets.TrayPNG,
-			}, application.Config{Title: "Claimward VPN", Width: float64(w), Height: float64(h)}, win, nil)
+			run := func() error {
+				return application.Run(application.Spec{
+					Name:       "Claimward VPN",
+					Identifier: "org.claimward.vpn",
+					Version:    version,
+					Icon:       assets.TrayPNG,
+				}, application.Config{Title: "Claimward VPN", Width: float64(w), Height: float64(h)}, win, nil)
+			}
+			err := run()
+			if err != nil && os.Getenv("GO_WIDGETS_GTK") != "" {
+				// The GTK4 host (native text fields) needs libgtk-4. Without
+				// it the window cannot open, so fall back once to the
+				// built-in X11/Wayland backend and its painted fields.
+				log.Printf("claimward: GTK4 window: %v: falling back to the built-in backend (painted text fields)", err)
+				os.Unsetenv("GO_WIDGETS_GTK")
+				err = run()
+			}
 			if err != nil {
 				log.Printf("claimward: window: %v", err)
 			}

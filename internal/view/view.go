@@ -109,10 +109,14 @@ type leaves struct {
 	log                                          *toolkit.ListBox
 	formTitle                                    *toolkit.Label
 	server, ghClient, issuer, oidcClient         *toolkit.Entry
-	provider                                     *toolkit.DropDown
-	fServer, fProvider, fGH, fIssuer, fOIDC      *toolkit.FormField
-	cfgPath, cfgErr                              *toolkit.Label
-	save, cancel                                 *toolkit.Button
+	// The settings form's text inputs are native controls (the platform's own
+	// field, with its input method); the entries above are their painted
+	// fallbacks, shown where no native host claims the region.
+	nServer, nGH, nIssuer, nOIDC            *toolkit.Native
+	provider                                *toolkit.DropDown
+	fServer, fProvider, fGH, fIssuer, fOIDC *toolkit.FormField
+	cfgPath, cfgErr                         *toolkit.Label
+	save, cancel                            *toolkit.Button
 }
 
 // New builds the widgets and binds them to vm. disp is the dispatcher vm
@@ -207,11 +211,15 @@ func (v *View) build() {
 	l.issuer = toolkit.NewEntry("")
 	l.issuer.Placeholder = "https://issuer.example.com"
 	l.oidcClient = toolkit.NewEntry("")
-	l.fServer = toolkit.NewFormField("Server URL", l.server)
+	l.nServer = nativeEntry("server_url", l.server)
+	l.nGH = nativeEntry("github_client_id", l.ghClient)
+	l.nIssuer = nativeEntry("oidc_issuer", l.issuer)
+	l.nOIDC = nativeEntry("oidc_client_id", l.oidcClient)
+	l.fServer = toolkit.NewFormField("Server URL", l.nServer)
 	l.fProvider = toolkit.NewFormField("Identity provider", l.provider)
-	l.fGH = toolkit.NewFormField("GitHub client ID (GitHub provider)", l.ghClient)
-	l.fIssuer = toolkit.NewFormField("OIDC issuer (OIDC and go-authn)", l.issuer)
-	l.fOIDC = toolkit.NewFormField("OIDC client ID (OIDC and go-authn)", l.oidcClient)
+	l.fGH = toolkit.NewFormField("GitHub client ID (GitHub provider)", l.nGH)
+	l.fIssuer = toolkit.NewFormField("OIDC issuer (OIDC and go-authn)", l.nIssuer)
+	l.fOIDC = toolkit.NewFormField("OIDC client ID (OIDC and go-authn)", l.nOIDC)
 	l.cfgPath = muted(label(""))
 	l.cfgErr = label("")
 	l.cfgErr.Ink = errorInk
@@ -295,10 +303,60 @@ func (v *View) bind() {
 		mvvmtk.BindEntryText(l.issuer, vm.OIDCIssuer, inv),
 		mvvmtk.BindEntryText(l.oidcClient, vm.OIDCClientID, inv),
 	)
+	// The native fields write the same observables the fallbacks read, so
+	// whichever is on screen edits the view model.
+	v.unbind = append(v.unbind,
+		mvvm.BindTwoWay(vm.ServerURL, l.nServer.Text(), inv),
+		mvvm.BindTwoWay(vm.GitHubClientID, l.nGH.Text(), inv),
+		mvvm.BindTwoWay(vm.OIDCIssuer, l.nIssuer.Text(), inv),
+		mvvm.BindTwoWay(vm.OIDCClientID, l.nOIDC.Text(), inv),
+	)
 	// Enter in any field of the form saves it.
 	for _, e := range []*toolkit.Entry{l.server, l.ghClient, l.issuer, l.oidcClient} {
 		e.OnSubmit = func(string) { vm.SaveSettings.Execute() }
 	}
+	for _, n := range v.textInputs() {
+		n.SetOnActivate(func() { vm.SaveSettings.Execute() })
+	}
+}
+
+// nativeEntry is a native single-line text field keyed by its configuration
+// key, painting fallback where no host claims it.
+func nativeEntry(key string, fallback *toolkit.Entry) *toolkit.Native {
+	n := toolkit.NewNativeEntry("")
+	n.Key = key
+	n.Fallback = fallback
+	return n
+}
+
+// textInputs are the view's native text fields: one per text input.
+func (v *View) textInputs() []*toolkit.Native {
+	l := &v.leaves
+	return []*toolkit.Native{l.nServer, l.nGH, l.nIssuer, l.nOIDC}
+}
+
+var _ application.NativeControlProvider = (*View)(nil)
+
+// NativeControls describes the native controls to embed: one per text input
+// that is on the page being shown. Their callbacks run on the host's thread,
+// so each takes the view's lock like every other input path.
+func (v *View) NativeControls() []toolkit.NativeControl {
+	v.mu.Lock()
+	cs := toolkit.WalkNative(v.root)
+	v.mu.Unlock()
+	for i := range cs {
+		c := &cs[i]
+		if f := c.OnText; f != nil {
+			c.OnText = func(s string) { v.mu.Lock(); defer v.mu.Unlock(); f(s); v.dirty.Store(true) }
+		}
+		if f := c.OnActivate; f != nil {
+			c.OnActivate = func() { v.mu.Lock(); defer v.mu.Unlock(); f(); v.dirty.Store(true) }
+		}
+		if f := c.OnClaim; f != nil {
+			c.OnClaim = func(b bool) { v.mu.Lock(); defer v.mu.Unlock(); f(b); v.dirty.Store(true) }
+		}
+	}
+	return cs
 }
 
 // layout builds the boxes that place the leaves, at the current scale.

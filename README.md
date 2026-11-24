@@ -4,9 +4,16 @@
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](LICENSE)
 
 The Claimward VPN client for Linux: a **window and a tray icon drawn in pure Go**
-with [go-widgets](https://github.com/go-widgets) — no webview, no GTK, no cgo
+with [go-widgets](https://github.com/go-widgets) — no webview, no cgo
 (`CGO_ENABLED=0`) — and a **privileged helper** run by systemd that owns the
 WireGuard tunnel.
+
+The four settings text fields are **native GTK 4 entries** (input methods,
+selection, clipboard and accessibility come from the system), loaded at run time
+without cgo. The desktop entry starts the app with `GO_WIDGETS_GTK=1`. If
+`libgtk-4` is not installed, the app logs it and falls back to the painted
+fields; install `libgtk-4-1` to get the native ones. The native fields have no
+placeholder text.
 
 It signs you in (GitHub, OIDC or a go-authn provider), lets you choose a tenant
 when you belong to several, and connects you to a
@@ -238,6 +245,10 @@ tenant choice (a real TUN device, address and route), disconnecting, stopping
 the helper taking the tunnel down, editing the settings from the keyboard, the
 tray menu over D-Bus (status line, *Connect*, *Open window*, *Quit*), closing the
 window to the tray and reopening it.
+
+The native GTK 4 host is exercised by a CI smoke test (`gtksmoke`: the app opens
+its window under Xvfb with `GO_WIDGETS_GTK=1` and does not fall back). That the
+GtkEntry widgets themselves are present and take input is not asserted yet.
 
 Not verified yet: a real desktop (GNOME with the AppIndicator extension, KDE),
 Wayland, HiDPI on a real screen, a sign-in against a real identity provider, and
