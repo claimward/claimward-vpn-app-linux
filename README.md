@@ -54,6 +54,12 @@ logic is the same as the macOS app's: both use the shared core in
   state into a widget on a frame. Slow work (the status poll every 2 s, sign-in,
   connecting) runs on goroutines and posts its result back to the UI goroutine,
   because observables are single-threaded.
+- **Shared model.** The logic (screens, what each command may do, the status
+  poll, the events) is `pkg/appvm` of `claimward-vpn-client` v0.7.0, shared with
+  the Windows and macOS apps; `internal/viewmodel` only adapts it to observables.
+  A dropped tunnel or an expired session becomes a desktop notification
+  (`tray.Notify`, once per transition; clicking it opens the window), and the
+  window reports only the rectangles that changed (`DamageRects`) to the host.
 - **No hand-drawn UI.** Every visible element is a toolkit widget (labels,
   buttons, entries, drop-downs, list); CI enforces it with
   [bricolint](https://github.com/go-widgets/bricolint), and MVVM with
