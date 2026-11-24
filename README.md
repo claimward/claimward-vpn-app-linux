@@ -195,6 +195,9 @@ After editing it: `sudo systemctl restart claimward-helper`.
 - The session (a bearer token and the device's private key) is sealed in the
   Secret Service keyring and never written to disk in clear: without a Secret
   Service provider, sign-in fails.
+- The tunnel's MTU is clamped to the path MTU to the server minus 60 (IPv4) or
+  80 (IPv6) (claimward-vpn-client v0.6.0), so large packets are not lost on
+  links with a smaller MTU.
 - `install.sh --server` accepts https URLs only: the token is sent to that server.
 
 ## Development
