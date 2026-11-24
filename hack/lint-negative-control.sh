@@ -62,10 +62,10 @@ control() {
 }
 
 control bricolint "$bricolint" \
-	'p := painter.NewPixelPainter(v.spare, v.w, v.h)' \
+	'p := painter.NewPixelPainter(v.buf, v.w, v.h)' \
 	'	p.FillRect(painter.Rect{}, painter.RGBA{})'
 control mvvmlint "$mvvmlint" \
-	'l, vm, inv := &v.leaves, v.vm, v.invalidate' \
+	'l, vm := &v.leaves, v.vm' \
 	'	l.tenants.Options = nil'
 
 echo "PASS: both guards bite on a real leak in this app and are silent otherwise"

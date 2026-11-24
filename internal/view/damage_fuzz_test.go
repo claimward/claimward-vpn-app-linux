@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/claimward/claimward-vpn-client/pkg/hproto"
 	"github.com/go-widgets/toolkit"
 )
 
@@ -33,6 +34,33 @@ func explain(v *View, shown []byte) string {
 	}
 	walk(v.root, 0)
 	return out
+}
+
+// An open list floats over the window outside its widget: it is damaged where
+// it is drawn while it shows, and where it was when it goes.
+func TestAnOpenPopoverIsDamagedWhereItIsDrawnAndWhereItWas(t *testing.T) {
+	st := signedIn()
+	st.TenantRequired = true
+	st.Tenants = []hproto.Tenant{{ID: "acme", Name: "Acme"}, {ID: "lab", Name: "Lab"}}
+	f := newFixture(t, st)
+	var o host
+	o.present(f.v)
+	same := func(what string) {
+		t.Helper()
+		o.present(f.v)
+		if !bytes.Equal(o.shown, f.v.buf) {
+			t.Fatalf("%s: %s", what, explain(f.v, o.shown))
+		}
+	}
+	dd := f.v.leaves.tenants
+	f.click(dd)
+	same("the list opening")
+	pb := dd.PopoverBounds()
+	f.v.MouseMove(pb.X+pb.W/2, pb.Y+pb.H/2)
+	same("the pointer over the list")
+	f.v.MouseDown(1, 1) // anywhere else closes it
+	f.v.MouseUp(1, 1)
+	same("the list closing")
 }
 
 // FuzzIncrementalPresent: after any sequence of view-model states, pointer

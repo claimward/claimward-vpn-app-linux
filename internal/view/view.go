@@ -258,8 +258,6 @@ func (v *View) build() {
 	v.actions = toolkit.NewContainer(v.actionsCard)
 }
 
-func (v *View) invalidate() { v.dirty.Store(true) }
-
 // changed is the invalidation of a binder whose state reached w: the next
 // frame reports w's rectangle, and only that, as damaged.
 func (v *View) changed(ws ...toolkit.Widget) func() {
