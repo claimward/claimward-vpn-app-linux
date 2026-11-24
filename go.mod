@@ -3,7 +3,7 @@ module github.com/claimward/claimward-vpn-app-linux
 go 1.27.4
 
 require (
-	github.com/claimward/claimward-vpn-client v0.5.0
+	github.com/claimward/claimward-vpn-client v0.6.0
 	github.com/go-widgets/application v0.8.1
 	github.com/go-widgets/mvvm v0.15.0
 	github.com/go-widgets/mvvmtk v0.15.0
