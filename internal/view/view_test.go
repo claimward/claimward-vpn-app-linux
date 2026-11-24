@@ -74,7 +74,7 @@ type fixture struct {
 	v    *View
 }
 
-func newFixture(t *testing.T, st appcore.Status) *fixture {
+func newFixture(t testing.TB, st appcore.Status) *fixture {
 	t.Helper()
 	svc := &service{st: st, cfg: appcore.Config{ServerURL: st.ServerURL, Provider: "github", GitHubClientID: "Iv1.abc"}}
 	d := viewmodel.NewDispatcher()
@@ -116,6 +116,9 @@ func (f *fixture) click(w toolkit.Widget) {
 	f.v.mu.Unlock()
 	f.v.MouseDown(x, y)
 	f.v.MouseUp(x, y)
+	// A command publishes a State, which reaches the observables when the
+	// view drains: the running app does it on the next wake-up.
+	f.v.Pump()
 }
 
 func visible(w toolkit.Widget) bool { r := w.Bounds(); return r.W > 0 && r.H > 0 }
@@ -256,6 +259,7 @@ func TestChoosingATenantInTheDropDown(t *testing.T) {
 	pb := dd.PopoverBounds()
 	row := (pb.H / len(dd.Options))
 	f.v.MouseDown(pb.X+pb.W/2, pb.Y+2*row+row/2) // the third row: Lab
+	f.v.Pump()
 	if !f.svc.has("set-tenant:lab") {
 		t.Fatalf("calls %v", f.svc.called())
 	}

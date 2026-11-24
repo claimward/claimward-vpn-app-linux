@@ -88,6 +88,7 @@ func TestClaimedNativeStandsTheFallbackDown(t *testing.T) {
 	}
 	cs[0].OnText("not a url") // an invalid value: saving must refuse, not crash
 	cs[0].OnActivate()        // Return saves the form, like Enter in the painted field
+	f.v.Pump()
 	if visible(f.v.settingsPage) && f.vm.SettingsError.Get() == "" {
 		t.Fatal("Return in a native field did not run Save")
 	}

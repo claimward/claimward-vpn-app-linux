@@ -15,6 +15,7 @@ import (
 	"image/png"
 	"time"
 
+	"github.com/claimward/claimward-vpn-client/pkg/appvm"
 	"github.com/go-widgets/mvvm"
 	"github.com/go-widgets/tray"
 
@@ -52,6 +53,24 @@ func Bind(t *tray.Tray, vm *viewmodel.ViewModel, icon []byte, a Actions) (unbind
 			u()
 		}
 	}
+}
+
+// Notifier is the part of *tray.Tray that shows a desktop notification.
+type Notifier interface {
+	Notify(tray.Notification) error
+}
+
+// BindNotifications turns the view model's events (the tunnel dropped, the
+// session expired) into desktop notifications, once per event, a click on one
+// running openWindow. A notification that cannot be shown is logged with logf
+// and never stops the app. The returned function detaches.
+func BindNotifications(n Notifier, vm *viewmodel.ViewModel, openWindow func(), logf func(format string, args ...any)) (unbind func()) {
+	return vm.Model().SubscribeEvents(func(e appvm.Event) {
+		err := n.Notify(tray.Notification{Title: e.Title, Body: e.Body, OnClick: openWindow})
+		if err != nil {
+			logf("claimward: notification %q: %v", e.Title, err)
+		}
+	})
 }
 
 // Menu is the tray menu for vm's current state.
