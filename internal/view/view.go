@@ -80,7 +80,7 @@ type View struct {
 	w, h                              int
 	scale                             float64
 	buf                               []byte // the last painted frame
-	repaint, damageAll, painted       bool   // the next frame is whole / the frames not yet reported are / one is waiting to be
+	repaint, damageAll                bool   // the next frame is whole / the frames not yet reported are
 	// What changed, reported by whoever changed it rather than found by
 	// scanning pixels: the widgets whose state moved since the last frame, the
 	// rectangles painted and not yet reported, the floating popovers drawn in
@@ -661,7 +661,6 @@ func (v *View) collectDamage() {
 	clear(v.touched) // drop the widget references, keep the room
 	v.touched = v.touched[:0]
 	v.popovers, v.prevPops = v.prevPops[:0], pops
-	v.painted = true
 }
 
 // extent is the rectangle w and everything under it occupies: a box lays its
@@ -711,15 +710,12 @@ func (v *View) addDamage(r toolkit.Rect) {
 func (v *View) DamageRects() []toolkit.Rect {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	if !v.painted {
-		return nil
-	}
 	out := v.damage
-	if v.damageAll {
+	if v.damageAll || len(out) == 0 {
 		out = nil
 	}
 	v.damage, v.spareDamage = v.spareDamage[:0], v.damage // two slices trade places: no allocation per frame
-	v.damageAll, v.painted = false, false
+	v.damageAll = false
 	return out
 }
 
