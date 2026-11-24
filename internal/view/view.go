@@ -80,12 +80,23 @@ type View struct {
 	w, h                              int
 	scale                             float64
 	buf                               []byte // the last painted frame
-	spare                             []byte // the next one is painted here
-	repaint, damageAll                bool   // the next frame has no usable previous one / report all of it
-	damage                            []toolkit.Rect
-	dirty                             atomic.Bool
-	pressed                           bool
-	lastX, lastY                      int
+	repaint, damageAll                bool   // the next frame is whole / the frames not yet reported are
+	// What changed, reported by whoever changed it rather than found by
+	// scanning pixels: the widgets whose state moved since the last frame, the
+	// rectangles painted and not yet reported, the floating popovers drawn in
+	// the last frame, the interactive widgets a hover can repaint, and the
+	// pointer's last hovered position.
+	touched, interactive []toolkit.Widget
+	damage, spareDamage  []toolkit.Rect
+	popovers, prevPops   []toolkit.Rect
+	pages                [3][]toolkit.Widget // the pages of screens, slot, actions
+	left                 []toolkit.Rect      // what the pages just left had drawn
+	switched             [3]bool             // the switcher changed page since the last frame
+	hoverX, hoverY       int
+	hoverStale           bool // widgets moved since the pointer was last seen
+	dirty                atomic.Bool
+	pressed              bool
+	lastX, lastY         int
 }
 
 // leaves are the widgets the view model's state reaches. The boxes that place
@@ -247,73 +258,114 @@ func (v *View) build() {
 	v.actions = toolkit.NewContainer(v.actionsCard)
 }
 
-func (v *View) invalidate() { v.dirty.Store(true) }
+// changed is the invalidation of a binder whose state reached w: the next
+// frame reports w's rectangle, and only that, as damaged.
+func (v *View) changed(ws ...toolkit.Widget) func() {
+	return func() {
+		v.touched = append(v.touched, ws...)
+		v.dirty.Store(true)
+	}
+}
+
+// everything makes the next frame whole: a change nothing here can bound.
+func (v *View) everything() {
+	v.repaint = true
+	v.dirty.Store(true)
+}
+
+// hovered marks the interactive widgets under (x, y), whose hover feedback a
+// pointer move there changes.
+func (v *View) hovered(x, y int) {
+	for _, w := range v.interactive {
+		if w.Bounds().Contains(x, y) {
+			v.touched = append(v.touched, w)
+			v.dirty.Store(true)
+		}
+	}
+}
 
 // bind ties every leaf to the view model. It is the only place widget state
 // is reached, and it reaches it through the binders.
 func (v *View) bind() {
-	l, vm, inv := &v.leaves, v.vm, v.invalidate
-	page := func(c *toolkit.Container) func() {
+	l, vm := &v.leaves, v.vm
+	// Every binder says which widget its state reaches, and that widget's
+	// rectangle is what the frame reports damaged: what changed, not a scan of
+	// what the pixels did. A switcher's page change damages the switcher.
+	on := v.changed
+	page := func(c *toolkit.Container, i int) func() {
 		return func() {
+			// The page being left is still laid out here: what it drew is
+			// damaged, all of it, including what overflowed its switcher.
+			for _, p := range v.pages[i] {
+				v.left = append(v.left, extent(p))
+			}
 			c.SetBounds(c.Bounds()) // re-arrange for the new page
-			inv()
+			v.switched[i], v.hoverStale = true, true
+			v.dirty.Store(true)
 		}
 	}
 	v.unbind = append(v.unbind,
-		mvvm.OneWay(vm.Screen, &v.screenCard.Active, page(v.screens)),
-		mvvm.OneWay(vm.Slot, &v.slotCard.Active, page(v.slot)),
-		mvvm.OneWay(vm.Actions, &v.actionsCard.Active, page(v.actions)),
+		mvvm.OneWay(vm.Screen, &v.screenCard.Active, page(v.screens, 0)),
+		mvvm.OneWay(vm.Slot, &v.slotCard.Active, page(v.slot, 1)),
+		mvvm.OneWay(vm.Actions, &v.actionsCard.Active, page(v.actions, 2)),
 
-		mvvmtk.BindLabel(l.busy, vm.Busy, inv),
-		mvvmtk.BindLabel(l.err, vm.Error, inv),
-		mvvmtk.BindLabel(l.problem, vm.Problem, inv),
-		mvvmtk.BindLabel(l.state, vm.State, inv),
-		mvvmtk.BindLabel(l.account, vm.Account, inv),
-		mvvmtk.BindLabel(l.address, vm.Address, inv),
-		mvvmtk.BindLabel(l.tenant, vm.Tenant, inv),
-		mvvmtk.BindLabel(l.helper, vm.Helper, inv),
-		mvvmtk.BindLabel(l.srv, vm.Server, inv),
-		mvvmtk.BindLabel(l.hint, vm.SignInHint, inv),
-		mvvmtk.BindLabel(l.code, vm.SignInCode, inv),
-		mvvmtk.BindLabel(l.url, vm.SignInURL, inv),
-		mvvmtk.BindLabel(l.cfgPath, vm.ConfigPath, inv),
-		mvvmtk.BindLabel(l.cfgErr, vm.SettingsError, inv),
+		mvvmtk.BindLabel(l.busy, vm.Busy, on(l.busy)),
+		mvvmtk.BindLabel(l.err, vm.Error, on(l.err)),
+		mvvmtk.BindLabel(l.problem, vm.Problem, on(l.problem)),
+		mvvmtk.BindLabel(l.state, vm.State, on(l.state)),
+		mvvmtk.BindLabel(l.account, vm.Account, on(l.account)),
+		mvvmtk.BindLabel(l.address, vm.Address, on(l.address)),
+		mvvmtk.BindLabel(l.tenant, vm.Tenant, on(l.tenant)),
+		mvvmtk.BindLabel(l.helper, vm.Helper, on(l.helper)),
+		mvvmtk.BindLabel(l.srv, vm.Server, on(l.srv)),
+		mvvmtk.BindLabel(l.hint, vm.SignInHint, on(l.hint)),
+		mvvmtk.BindLabel(l.code, vm.SignInCode, on(l.code)),
+		mvvmtk.BindLabel(l.url, vm.SignInURL, on(l.url)),
+		mvvmtk.BindLabel(l.cfgPath, vm.ConfigPath, on(l.cfgPath)),
+		mvvmtk.BindLabel(l.cfgErr, vm.SettingsError, on(l.cfgErr)),
 
-		mvvmtk.BindCommand(l.settings, vm.OpenSettings, inv),
-		mvvmtk.BindCommand(l.openSettings, vm.OpenSettings, inv),
-		mvvmtk.BindCommand(l.openPage, vm.OpenSignInPage, inv),
-		mvvmtk.BindCommand(l.cancelSignIn, vm.CancelSignIn, inv),
-		mvvmtk.BindCommand(l.refreshTenants, vm.ChooseTenant, inv),
-		mvvmtk.BindCommand(l.chooseTenant, vm.ChooseTenant, inv),
-		mvvmtk.BindCommand(l.signIn, vm.SignIn, inv),
-		mvvmtk.BindCommand(l.connect, vm.Connect, inv),
-		mvvmtk.BindCommand(l.disconnect, vm.Disconnect, inv),
-		mvvmtk.BindCommand(l.signOut1, vm.SignOut, inv),
-		mvvmtk.BindCommand(l.signOut2, vm.SignOut, inv),
-		mvvmtk.BindCommand(l.save, vm.SaveSettings, inv),
-		mvvmtk.BindCommand(l.cancel, vm.CloseSettings, inv),
+		mvvmtk.BindCommand(l.settings, vm.OpenSettings, on(l.settings)),
+		mvvmtk.BindCommand(l.openSettings, vm.OpenSettings, on(l.openSettings)),
+		mvvmtk.BindCommand(l.openPage, vm.OpenSignInPage, on(l.openPage)),
+		mvvmtk.BindCommand(l.cancelSignIn, vm.CancelSignIn, on(l.cancelSignIn)),
+		mvvmtk.BindCommand(l.refreshTenants, vm.ChooseTenant, on(l.refreshTenants)),
+		mvvmtk.BindCommand(l.chooseTenant, vm.ChooseTenant, on(l.chooseTenant)),
+		mvvmtk.BindCommand(l.signIn, vm.SignIn, on(l.signIn)),
+		mvvmtk.BindCommand(l.connect, vm.Connect, on(l.connect)),
+		mvvmtk.BindCommand(l.disconnect, vm.Disconnect, on(l.disconnect)),
+		mvvmtk.BindCommand(l.signOut1, vm.SignOut, on(l.signOut1)),
+		mvvmtk.BindCommand(l.signOut2, vm.SignOut, on(l.signOut2)),
+		mvvmtk.BindCommand(l.save, vm.SaveSettings, on(l.save)),
+		mvvmtk.BindCommand(l.cancel, vm.CloseSettings, on(l.cancel)),
 
-		mvvmtk.BindDropDownOptions(l.tenants, vm.TenantOptions, func(o viewmodel.TenantOption) string { return o.Label }, inv),
-		mvvmtk.BindSelectedIndex(l.tenants, vm.TenantIndex, inv),
-		mvvm.BindTwoWay(vm.TenantLocked, l.tenants.Disabled(), inv),
+		mvvmtk.BindDropDownOptions(l.tenants, vm.TenantOptions, func(o viewmodel.TenantOption) string { return o.Label }, on(l.tenants)),
+		mvvmtk.BindSelectedIndex(l.tenants, vm.TenantIndex, on(l.tenants)),
+		mvvm.BindTwoWay(vm.TenantLocked, l.tenants.Disabled(), on(l.tenants)),
 
-		mvvmtk.BindListItems(l.log, vm.Log, func(s string) string { return s }, inv),
-		mvvm.BindTwoWay(vm.LogScroll, l.log.ScrollRow(), inv),
+		mvvmtk.BindListItems(l.log, vm.Log, func(s string) string { return s }, on(l.log)),
+		mvvm.BindTwoWay(vm.LogScroll, l.log.ScrollRow(), on(l.log)),
 
-		mvvmtk.BindEntryText(l.server, vm.ServerURL, inv),
-		mvvmtk.BindSelectedIndex(l.provider, vm.ProviderIndex, inv),
-		mvvmtk.BindEntryText(l.ghClient, vm.GitHubClientID, inv),
-		mvvmtk.BindEntryText(l.issuer, vm.OIDCIssuer, inv),
-		mvvmtk.BindEntryText(l.oidcClient, vm.OIDCClientID, inv),
+		mvvmtk.BindEntryText(l.server, vm.ServerURL, on(l.fServer)),
+		mvvmtk.BindSelectedIndex(l.provider, vm.ProviderIndex, on(l.fProvider)),
+		mvvmtk.BindEntryText(l.ghClient, vm.GitHubClientID, on(l.fGH)),
+		mvvmtk.BindEntryText(l.issuer, vm.OIDCIssuer, on(l.fIssuer)),
+		mvvmtk.BindEntryText(l.oidcClient, vm.OIDCClientID, on(l.fOIDC)),
 	)
 	// The native fields write the same observables the fallbacks read, so
 	// whichever is on screen edits the view model.
 	v.unbind = append(v.unbind,
-		mvvm.BindTwoWay(vm.ServerURL, l.nServer.Text(), inv),
-		mvvm.BindTwoWay(vm.GitHubClientID, l.nGH.Text(), inv),
-		mvvm.BindTwoWay(vm.OIDCIssuer, l.nIssuer.Text(), inv),
-		mvvm.BindTwoWay(vm.OIDCClientID, l.nOIDC.Text(), inv),
+		mvvm.BindTwoWay(vm.ServerURL, l.nServer.Text(), on(l.fServer)),
+		mvvm.BindTwoWay(vm.GitHubClientID, l.nGH.Text(), on(l.fGH)),
+		mvvm.BindTwoWay(vm.OIDCIssuer, l.nIssuer.Text(), on(l.fIssuer)),
+		mvvm.BindTwoWay(vm.OIDCClientID, l.nOIDC.Text(), on(l.fOIDC)),
 	)
+	// A pointer moving over one of these repaints its hover feedback.
+	v.interactive = []toolkit.Widget{
+		l.settings, l.openSettings, l.openPage, l.cancelSignIn, l.refreshTenants,
+		l.chooseTenant, l.signIn, l.connect, l.disconnect, l.signOut1, l.signOut2,
+		l.save, l.cancel, l.tenants, l.provider, l.log,
+		l.fServer, l.fProvider, l.fGH, l.fIssuer, l.fOIDC,
+	}
 	// Enter in any field of the form saves it.
 	for _, e := range []*toolkit.Entry{l.server, l.ghClient, l.issuer, l.oidcClient} {
 		e.OnSubmit = func(string) { vm.SaveSettings.Execute() }
@@ -353,10 +405,10 @@ func (v *View) NativeControls() []toolkit.NativeControl {
 			c.OnText = func(s string) { v.mu.Lock(); defer v.mu.Unlock(); f(s); v.dirty.Store(true) }
 		}
 		if f := c.OnActivate; f != nil {
-			c.OnActivate = func() { v.mu.Lock(); defer v.mu.Unlock(); f(); v.dirty.Store(true) }
+			c.OnActivate = func() { v.mu.Lock(); defer v.mu.Unlock(); f(); v.everything() }
 		}
 		if f := c.OnClaim; f != nil {
-			c.OnClaim = func(b bool) { v.mu.Lock(); defer v.mu.Unlock(); f(b); v.dirty.Store(true) }
+			c.OnClaim = func(b bool) { v.mu.Lock(); defer v.mu.Unlock(); f(b); v.everything() }
 		}
 	}
 	return cs
@@ -478,6 +530,14 @@ func (v *View) layout() {
 	form.AddFlex(toolkit.NewLabel(""), 1)
 	v.settingsPage = form
 
+	// What each switcher shows, for the damage of a page change: a page is laid
+	// out for more room than its switcher has when the window is short, and
+	// draws below it, so the old page's own rectangle is damaged too.
+	v.pages = [3][]toolkit.Widget{
+		{v.loadingPage, v.unconfiguredPage, v.mainPage, v.settingsPage},
+		{v.noSlot, v.signInSlot, v.tenantSlot, v.chooseSlot},
+		{v.signedOutRow, v.disconnectedRow, v.connectedRow},
+	}
 	v.screens.SetItems(
 		toolkit.Item{Widget: v.loadingPage},
 		toolkit.Item{Widget: v.unconfiguredPage},
@@ -545,37 +605,115 @@ func (v *View) Frame() ([]byte, int, int, bool) {
 	if !v.dirty.Swap(false) {
 		return v.buf, v.w, v.h, false
 	}
-	// Paint into the spare buffer, then diff it against the frame the host
-	// last received and swap: the changed rectangles cost one scan and no copy.
-	if len(v.spare) != len(v.buf) {
-		v.spare = make([]byte, len(v.buf))
+	fill(v.buf, v.theme.Background)
+	p := painter.NewPixelPainter(v.buf, v.w, v.h)
+	v.root.Draw(p, v.theme)
+	v.collectDamage()
+	return v.buf, v.w, v.h, true
+}
+
+// collectDamage turns what the binders and events reported into rectangles,
+// now that the layout they sit in is the one just painted. A popover floats
+// outside its widget, so the ones drawn now and the ones drawn last frame are
+// both damaged: it covers pixels it did not cover before, or uncovers them.
+func (v *View) collectDamage() {
+	pops := v.popovers[:0]
+	for _, o := range toolkit.PopoverOwners(v.root) {
+		pops = append(pops, o.PopoverBounds())
+	}
+	// The widgets report what they changed within their own rectangles, and
+	// that holds in the window the layout is drawn for. Below its minimum a
+	// control squeezed past its content draws outside itself, which no
+	// rectangle bounds, so such a window is repainted whole.
+	if mw, mh := MinSize(); float64(v.w) < float64(mw)*v.scale || float64(v.h) < float64(mh)*v.scale {
 		v.repaint = true
 	}
-	fill(v.spare, v.theme.Background)
-	p := painter.NewPixelPainter(v.spare, v.w, v.h)
-	v.root.Draw(p, v.theme)
 	if v.repaint {
 		v.damageAll, v.repaint = true, false
-	} else {
-		v.damage = append(v.damage, toolkit.DiffRects(v.spare, v.buf, v.w, v.h)...)
 	}
-	v.buf, v.spare = v.spare, v.buf
-	return v.buf, v.w, v.h, true
+	if !v.damageAll {
+		for _, w := range v.touched {
+			v.addDamage(w.Bounds())
+		}
+		for _, r := range pops {
+			v.addDamage(r)
+		}
+		for _, r := range v.prevPops {
+			v.addDamage(r)
+		}
+	}
+	for i, cards := range [3]*toolkit.CardLayout{v.screenCard, v.slotCard, v.actionsCard} {
+		if v.switched[i] && !v.damageAll {
+			if a := cards.Active; a >= 0 && a < len(v.pages[i]) {
+				v.addDamage(extent(v.pages[i][a]))
+			}
+		}
+		v.switched[i] = false
+	}
+	if !v.damageAll {
+		for _, r := range v.left {
+			v.addDamage(r)
+		}
+	}
+	v.left = v.left[:0]
+	clear(v.touched) // drop the widget references, keep the room
+	v.touched = v.touched[:0]
+	v.popovers, v.prevPops = v.prevPops[:0], pops
+}
+
+// extent is the rectangle w and everything under it occupies: a box lays its
+// children out in more room than it has when the window is short, and they
+// draw there.
+func extent(w toolkit.Widget) toolkit.Rect {
+	r := w.Bounds()
+	if cp, ok := w.(interface{ Children() []toolkit.Widget }); ok {
+		for _, c := range cp.Children() {
+			r = union(r, extent(c))
+		}
+	}
+	return r
+}
+
+// union is the smallest rectangle holding a and b; an empty one is ignored.
+func union(a, b toolkit.Rect) toolkit.Rect {
+	switch {
+	case a.W <= 0 || a.H <= 0:
+		return b
+	case b.W <= 0 || b.H <= 0:
+		return a
+	}
+	x0, y0 := min(a.X, b.X), min(a.Y, b.Y)
+	x1, y1 := max(a.X+a.W, b.X+b.W), max(a.Y+a.H, b.Y+b.H)
+	return toolkit.Rect{X: x0, Y: y0, W: x1 - x0, H: y1 - y0}
+}
+
+// addDamage records r, cut to the frame: a widget can sit partly or wholly
+// outside it, and a host copies exactly the rectangles it is given.
+func (v *View) addDamage(r toolkit.Rect) {
+	x0, y0 := max(r.X, 0), max(r.Y, 0)
+	x1, y1 := min(r.X+r.W, v.w), min(r.Y+r.H, v.h)
+	if x1 > x0 && y1 > y0 {
+		v.damage = append(v.damage, toolkit.Rect{X: x0, Y: y0, W: x1 - x0, H: y1 - y0})
+	}
 }
 
 // DamageRects reports the rectangles, in framebuffer pixels, that changed
 // since the last call: what the window has to re-present instead of the whole
-// frame. It reports nothing (the whole frame) after a resize, and whenever no
-// painted frame is pending, so a host that presents for any other reason, an
-// expose for one, repaints everything and is never left with stale pixels.
+// frame. They come from what changed (the widgets whose state moved, the
+// widget under a hovering pointer), not from comparing pixels. It reports
+// nothing (the whole frame) after a resize, a theme change or an input the
+// view cannot bound, and whenever no painted frame is pending, so a host that
+// presents for any other reason, an expose for one, repaints everything and is
+// never left with stale pixels. The slice is valid until the next call.
 func (v *View) DamageRects() []toolkit.Rect {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	out := v.damage
-	if v.damageAll {
+	if v.damageAll || len(out) == 0 {
 		out = nil
 	}
-	v.damage, v.damageAll = nil, false
+	v.damage, v.spareDamage = v.spareDamage[:0], v.damage // two slices trade places: no allocation per frame
+	v.damageAll = false
 	return out
 }
 
@@ -604,6 +742,7 @@ func (v *View) Resize(w, h int, scale float64) {
 		v.repaint = true
 	}
 	v.w, v.h = w, h
+	v.hoverStale = true
 	if scale != v.scale {
 		v.scale = scale
 		toolkit.SetMetricScale(scale)
@@ -625,7 +764,32 @@ func (v *View) event(ev toolkit.Event) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.root.OnEvent(ev)
-	v.dirty.Store(true)
+	switch {
+	case ev.Kind == toolkit.EventMouseMove && !v.pressed:
+		// A hover repaints the widget the pointer left and the one it entered,
+		// and a popover list highlights the row under it. Where the widgets have
+		// moved since the pointer was last seen (a resize, a page change), a
+		// hover flag kept where one used to be flips wherever that widget is
+		// now, so every one that can hover is repainted once.
+		if v.hoverStale {
+			v.touched = append(v.touched, v.interactive...)
+			v.dirty.Store(true)
+			v.hoverStale = false
+		}
+		v.hovered(v.hoverX, v.hoverY)
+		v.hovered(ev.X, ev.Y)
+		if len(v.prevPops) > 0 {
+			v.dirty.Store(true)
+		}
+	default:
+		// A press moves focus, a key edits or moves it, a wheel scrolls, a drag
+		// selects: nothing here says where, so the frame is whole.
+		// Nor where a button now believes the pointer is: a press, a drag and
+		// a release set that without a plain move.
+		v.everything()
+		v.hoverStale = true
+	}
+	v.hoverX, v.hoverY = ev.X, ev.Y
 }
 
 // MouseDown is a press: a click for the toolkit.
@@ -709,7 +873,7 @@ func (v *View) SystemAppearance(a application.SystemAppearance) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.theme = themeFor(a.Dark)
-	v.dirty.Store(true)
+	v.everything()
 }
 
 // NeedsPresent lets the window skip blitting an unchanged frame.
