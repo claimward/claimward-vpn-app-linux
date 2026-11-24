@@ -17,7 +17,6 @@ import (
 	"sync"
 
 	"github.com/claimward/claimward-vpn-client/pkg/appcore"
-	"github.com/claimward/claimward-vpn-client/pkg/browser"
 	"github.com/go-widgets/application"
 	"github.com/go-widgets/tray"
 	"github.com/godbus/dbus/v5"
@@ -51,7 +50,7 @@ func main() {
 	disp := viewmodel.NewDispatcher()
 	vm := viewmodel.New(core, viewmodel.Options{
 		Dispatcher: disp,
-		Open:       browser.Open,
+		Open:       application.OpenURL,
 		ConfigPath: appcore.ConfigPath(),
 	})
 	win := view.New(vm, disp)
@@ -61,6 +60,12 @@ func main() {
 	vm.Start()
 
 	openWindow := make(chan struct{}, 1)
+	requestWindow := func() {
+		select {
+		case openWindow <- struct{}{}:
+		default:
+		}
+	}
 	quit := make(chan struct{})
 	var quitOnce sync.Once
 	// The tray is this app's own, not application.Spec.Tray. Spec.Tray
@@ -81,18 +86,17 @@ func main() {
 	if haveTray {
 		win.Locked(func() {
 			trayview.Bind(t, vm, assets.TrayPNG, trayview.Actions{
-				OpenWindow: func() {
-					select {
-					case openWindow <- struct{}{}:
-					default:
-					}
-				},
-				Quit: func() { quitOnce.Do(func() { close(quit) }) },
+				OpenWindow: requestWindow,
+				Quit:       func() { quitOnce.Do(func() { close(quit) }) },
 			})
 		})
 		if err := t.Attach(); err != nil {
 			log.Printf("claimward: tray: %v: closing the window quits", err)
 			haveTray = false
+		} else {
+			// Events (tunnel dropped, session expired) become desktop
+			// notifications; a click brings the window back.
+			trayview.BindNotifications(t, vm, requestWindow, log.Printf)
 		}
 	}
 	if haveTray {

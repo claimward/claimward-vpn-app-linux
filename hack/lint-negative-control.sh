@@ -62,7 +62,7 @@ control() {
 }
 
 control bricolint "$bricolint" \
-	'p := painter.NewPixelPainter(v.buf, v.w, v.h)' \
+	'p := painter.NewPixelPainter(v.spare, v.w, v.h)' \
 	'	p.FillRect(painter.Rect{}, painter.RGBA{})'
 control mvvmlint "$mvvmlint" \
 	'l, vm, inv := &v.leaves, v.vm, v.invalidate' \

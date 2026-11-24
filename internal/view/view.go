@@ -79,7 +79,10 @@ type View struct {
 	leaves                            leaves
 	w, h                              int
 	scale                             float64
-	buf                               []byte
+	buf                               []byte // the last painted frame
+	spare                             []byte // the next one is painted here
+	repaint, damageAll                bool   // the next frame has no usable previous one / report all of it
+	damage                            []toolkit.Rect
 	dirty                             atomic.Bool
 	pressed                           bool
 	lastX, lastY                      int
@@ -542,10 +545,38 @@ func (v *View) Frame() ([]byte, int, int, bool) {
 	if !v.dirty.Swap(false) {
 		return v.buf, v.w, v.h, false
 	}
-	fill(v.buf, v.theme.Background)
-	p := painter.NewPixelPainter(v.buf, v.w, v.h)
+	// Paint into the spare buffer, then diff it against the frame the host
+	// last received and swap: the changed rectangles cost one scan and no copy.
+	if len(v.spare) != len(v.buf) {
+		v.spare = make([]byte, len(v.buf))
+		v.repaint = true
+	}
+	fill(v.spare, v.theme.Background)
+	p := painter.NewPixelPainter(v.spare, v.w, v.h)
 	v.root.Draw(p, v.theme)
+	if v.repaint {
+		v.damageAll, v.repaint = true, false
+	} else {
+		v.damage = append(v.damage, toolkit.DiffRects(v.spare, v.buf, v.w, v.h)...)
+	}
+	v.buf, v.spare = v.spare, v.buf
 	return v.buf, v.w, v.h, true
+}
+
+// DamageRects reports the rectangles, in framebuffer pixels, that changed
+// since the last call: what the window has to re-present instead of the whole
+// frame. It reports nothing (the whole frame) after a resize, and whenever no
+// painted frame is pending, so a host that presents for any other reason, an
+// expose for one, repaints everything and is never left with stale pixels.
+func (v *View) DamageRects() []toolkit.Rect {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	out := v.damage
+	if v.damageAll {
+		out = nil
+	}
+	v.damage, v.damageAll = nil, false
+	return out
 }
 
 // fill paints the whole frame with the background: the page the widgets are
@@ -568,6 +599,9 @@ func (v *View) Resize(w, h int, scale float64) {
 	}
 	if len(v.buf) != w*h*4 {
 		v.buf = make([]byte, w*h*4)
+	}
+	if v.w != w || v.h != h {
+		v.repaint = true
 	}
 	v.w, v.h = w, h
 	if scale != v.scale {

@@ -75,6 +75,7 @@ func TestTheTrayFollowsTheViewModelAndRunsItsCommands(t *testing.T) {
 	vm := viewmodel.New(svc, viewmodel.Options{Dispatcher: d})
 	defer vm.Stop()
 	vm.Apply(svc.Status())
+	d.Drain()
 
 	h := tray.NewHeadless()
 	tr := tray.New(assets.TrayPNG).WithBackend(h)
@@ -155,5 +156,57 @@ func TestGreyscale(t *testing.T) {
 	}
 	if got := Greyscale([]byte("not a png")); string(got) != "not a png" {
 		t.Fatal("an undecodable icon should be returned as is")
+	}
+}
+
+type notifier struct {
+	got []tray.Notification
+	err error
+}
+
+func (n *notifier) Notify(x tray.Notification) error { n.got = append(n.got, x); return n.err }
+
+func TestADroppedTunnelIsOneNotificationNotOnePerPoll(t *testing.T) {
+	svc := &service{}
+	d := viewmodel.NewDispatcher()
+	vm := viewmodel.New(svc, viewmodel.Options{Dispatcher: d})
+	n := &notifier{}
+	opened := 0
+	var logged []string
+	unbind := BindNotifications(n, vm, func() { opened++ }, func(f string, a ...any) { logged = append(logged, f) })
+	defer unbind()
+
+	up := appcore.Status{ConfigOK: true, LoggedIn: true, HelperInstalled: true, Connected: true}
+	down := up
+	down.Connected = false
+	vm.Apply(up)
+	for i := 0; i < 10; i++ {
+		vm.Apply(down)
+	}
+	if len(n.got) != 1 || n.got[0].Title == "" || n.got[0].Body == "" {
+		t.Fatalf("10 polls in the dropped state gave %d notification(s): %+v", len(n.got), n.got)
+	}
+	n.got[0].OnClick()
+	if opened != 1 {
+		t.Fatalf("a click opened the window %d times", opened)
+	}
+	if len(logged) != 0 {
+		t.Fatalf("logged %v", logged)
+	}
+
+	// A notification that cannot be shown is logged and stops nothing.
+	n.err = context.DeadlineExceeded
+	vm.Apply(up)
+	vm.Apply(down)
+	if len(n.got) != 2 || len(logged) != 1 {
+		t.Fatalf("got %d, logged %v", len(n.got), logged)
+	}
+
+	// Once detached, a drop notifies no one.
+	unbind()
+	vm.Apply(up)
+	vm.Apply(down)
+	if len(n.got) != 2 {
+		t.Fatal("a detached binding notified")
 	}
 }
