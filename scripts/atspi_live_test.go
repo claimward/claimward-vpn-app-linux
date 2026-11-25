@@ -145,11 +145,10 @@ found:
 	if s.State[0]&operable != operable {
 		t.Fatalf("Settings state %#x lacks enabled+sensitive", s.State[0])
 	}
-	c := find("Connect")
-	if c.Role != rolePushButton {
-		t.Fatalf("Connect has role %d, want push button", c.Role)
-	}
-	if c.State[0]&operable != 0 {
-		t.Fatalf("disabled Connect state %#x still reports enabled or sensitive", c.State[0])
+	// An unconfigured app shows no disabled button, so the disabled
+	// mapping is covered by the view unit test and window's own live test.
+	o := find("Open settings")
+	if o.Role != rolePushButton || o.State[0]&operable != operable {
+		t.Fatalf("Open settings role %d state %#x, want an operable push button", o.Role, o.State[0])
 	}
 }
