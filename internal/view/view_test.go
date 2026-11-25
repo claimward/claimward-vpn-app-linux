@@ -454,6 +454,30 @@ func TestTheAccessibilityTreeNamesTheControls(t *testing.T) {
 	}
 }
 
+// A button whose command cannot execute is published as disabled, and the
+// same button enabled again is published as enabled.
+func TestTheAccessibilityTreePublishesTheDisabledState(t *testing.T) {
+	f := newFixture(t, signedOut())
+	state := func(name string) bool {
+		for _, e := range f.v.A11yElements() {
+			if e.Name == name {
+				return e.Disabled
+			}
+		}
+		t.Fatalf("%q is not described", name)
+		return false
+	}
+	b := f.v.leaves.signIn
+	b.Disabled().Set(true)
+	if !state("Sign in") {
+		t.Error("a disabled Sign in is published as enabled")
+	}
+	b.Disabled().Set(false)
+	if state("Sign in") {
+		t.Error("an enabled Sign in is published as disabled")
+	}
+}
+
 func TestRunDrainsUntilCancelled(t *testing.T) {
 	f := newFixture(t, signedOut())
 	ctx, cancel := context.WithCancel(context.Background())
