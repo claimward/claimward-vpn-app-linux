@@ -252,6 +252,11 @@ the helper taking the tunnel down, editing the settings from the keyboard, the
 tray menu over D-Bus (status line, *Connect*, *Open window*, *Quit*), closing the
 window to the tray and reopening it.
 
+The window carries a menu bar with the standard Edit menu (Undo, Redo, Cut,
+Copy, Paste, Select All), so the text fields have a menu route for copy and
+paste. That the menu bar appears and acts under a real GTK 4 session is not
+asserted by CI.
+
 The native GTK 4 host is exercised by a CI smoke test (`gtksmoke`: the app opens
 its window under Xvfb with `GO_WIDGETS_GTK=1` and does not fall back). That the
 GtkEntry widgets themselves are present and take input is not asserted yet.
