@@ -119,7 +119,12 @@ func main() {
 					Identifier: "org.claimward.vpn",
 					Version:    version,
 					Icon:       assets.TrayPNG,
-				}, application.Config{Title: "Claimward VPN", Width: float64(w), Height: float64(h)}, win, nil)
+				}, application.Config{
+					Title: "Claimward VPN", Width: float64(w), Height: float64(h),
+					// The standard Edit menu: without it Cut, Copy and Paste
+					// have no menu route in the embedded text fields.
+					Menu: tray.NewMenu().Add(tray.EditMenu()),
+				}, win, nil)
 			}
 			err := run()
 			if err != nil && os.Getenv("GO_WIDGETS_GTK") != "" {

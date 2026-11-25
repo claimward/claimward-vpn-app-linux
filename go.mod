@@ -4,12 +4,12 @@ go 1.27.4
 
 require (
 	github.com/claimward/claimward-vpn-client v0.7.0
-	github.com/go-widgets/application v0.12.0
+	github.com/go-widgets/application v0.15.0
 	github.com/go-widgets/mvvm v0.15.0
 	github.com/go-widgets/mvvmtk v0.16.0
-	github.com/go-widgets/painter v0.19.0
-	github.com/go-widgets/toolkit v0.399.0
-	github.com/go-widgets/tray v0.16.0
+	github.com/go-widgets/painter v0.20.2
+	github.com/go-widgets/toolkit v0.400.0
+	github.com/go-widgets/tray v0.17.1
 	github.com/godbus/dbus/v5 v5.2.4
 )
 
@@ -22,25 +22,26 @@ require (
 	github.com/go-gfx/gfx v0.41.0 // indirect
 	github.com/go-gfx/gpu2d v0.11.0 // indirect
 	github.com/go-gfx/vulkan v0.2.1 // indirect
-	github.com/go-gtk/gtk4 v0.12.0 // indirect
+	github.com/go-gtk/gtk4 v0.16.0 // indirect
 	github.com/go-images/images v0.3.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
-	github.com/go-macos/appkit v0.9.0 // indirect
+	github.com/go-macos/appkit v0.10.0 // indirect
 	github.com/go-macos/metal v0.6.0 // indirect
 	github.com/go-macos/objc v0.13.0 // indirect
 	github.com/go-mswin/d3d11 v0.3.0 // indirect
-	github.com/go-mswin/win32 v0.7.0 // indirect
+	github.com/go-mswin/win32 v0.8.0 // indirect
 	github.com/go-opentype/fonts v0.14.0 // indirect
 	github.com/go-opentype/opentype v0.20.0 // indirect
 	github.com/go-opentype/shape v0.7.0 // indirect
 	github.com/go-richdoc/richdoc v0.7.0 // indirect
+	github.com/go-simd/boxfilter v0.1.0 // indirect
 	github.com/go-typeset/bidi v0.3.1 // indirect
 	github.com/go-widgets/android v0.16.0 // indirect
 	github.com/go-widgets/gpupainter v0.4.0 // indirect
 	github.com/go-widgets/textinput v0.1.1 // indirect
 	github.com/go-widgets/vcs v0.1.0 // indirect
 	github.com/go-widgets/webcanvas v0.14.1 // indirect
-	github.com/go-widgets/window v0.101.0 // indirect
+	github.com/go-widgets/window v0.109.0 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.38.0 // indirect
