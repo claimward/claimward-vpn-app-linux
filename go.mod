@@ -4,11 +4,11 @@ go 1.27.4
 
 require (
 	github.com/claimward/claimward-vpn-client v0.7.0
-	github.com/go-widgets/application v0.9.0
+	github.com/go-widgets/application v0.12.0
 	github.com/go-widgets/mvvm v0.15.0
 	github.com/go-widgets/mvvmtk v0.16.0
-	github.com/go-widgets/painter v0.18.0
-	github.com/go-widgets/toolkit v0.396.1
+	github.com/go-widgets/painter v0.19.0
+	github.com/go-widgets/toolkit v0.399.0
 	github.com/go-widgets/tray v0.16.0
 	github.com/godbus/dbus/v5 v5.2.4
 )
@@ -22,7 +22,7 @@ require (
 	github.com/go-gfx/gfx v0.41.0 // indirect
 	github.com/go-gfx/gpu2d v0.11.0 // indirect
 	github.com/go-gfx/vulkan v0.2.1 // indirect
-	github.com/go-gtk/gtk4 v0.11.0 // indirect
+	github.com/go-gtk/gtk4 v0.12.0 // indirect
 	github.com/go-images/images v0.3.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-macos/appkit v0.9.0 // indirect
@@ -40,7 +40,7 @@ require (
 	github.com/go-widgets/textinput v0.1.1 // indirect
 	github.com/go-widgets/vcs v0.1.0 // indirect
 	github.com/go-widgets/webcanvas v0.14.1 // indirect
-	github.com/go-widgets/window v0.97.0 // indirect
+	github.com/go-widgets/window v0.101.0 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.38.0 // indirect

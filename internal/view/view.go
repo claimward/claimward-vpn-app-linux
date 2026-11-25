@@ -896,7 +896,7 @@ func (v *View) A11yElements() []application.A11yElement {
 			continue
 		}
 		out = append(out, application.A11yElement{Role: string(n.Role), Name: n.Name, Value: n.Value,
-			X: r.X, Y: r.Y, W: r.W, H: r.H})
+			X: r.X, Y: r.Y, W: r.W, H: r.H, Disabled: n.Disabled})
 	}
 	return out
 }

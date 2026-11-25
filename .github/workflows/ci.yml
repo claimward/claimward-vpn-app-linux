@@ -100,6 +100,25 @@ jobs:
       - name: Start the app with GO_WIDGETS_GTK and require the window to stay open
         run: xvfb-run -a dbus-run-session -- go test -tags gtksmoke -count=1 -v -run TestGTKHostOpensTheWindow ./scripts
 
+  atspi:
+    name: AT-SPI tree of the app (Xvfb + at-spi2-core + dbus)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.4'
+          cache: true
+      - name: Install the accessibility stack
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb dbus dbus-x11 at-spi2-core
+      - name: Dump the app's tree, require Settings enabled and Connect disabled
+        env:
+          CLAIMWARD_ATSPI_LIVE: "1"
+        run: >
+          xvfb-run -a -s "-screen 0 1024x768x24"
+          dbus-run-session --
+          go test -tags atspilive -count=1 -v -run '^TestTheAppPublishesItsButtonsToATSPI$' ./scripts
+
   scripts:
     name: shellcheck
     runs-on: ubuntu-latest
